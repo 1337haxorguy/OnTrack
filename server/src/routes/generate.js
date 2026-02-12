@@ -23,38 +23,116 @@ const OUTPUT_SCHEMA = {
     name: "task_plan",
     strict: true,
     schema: {
-      type: "object",
-      properties: {
-        plan: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              goal_id: { type: "string" },
-              date: { type: "string" },
-              start_time: { type: "string" },
-              end_time: { type: "string" },
-              title: { type: "string" },
-              description: { type: "string" },
-              difficulty: { type: "string", enum: ["easy", "moderate", "challenging"] },
-              estimated_duration_minutes: { type: "number" },
+      "name": "weekly_schedule_output",
+      "strict": true,
+      "schema": {
+        "type": "object",
+        "properties": {
+          "weekly_tasks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string",
+                  "format": "date",
+                  "description": "The date for the day's tasks (yyyy-mm-dd format)"
+                },
+                "objective": {
+                  "type": "string",
+                  "description": "General overview explaining the main purpose and goals for the given day"
+                },
+                "time_blocks": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "label": {
+                        "type": "string",
+                        "description": "Short title which tells the user the main purpose/focus of this time block"
+                      },
+                      "start_time": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^([0-1][0-9]|2[0-3]):[0-5][0-9]$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "HH:MM format in military time OR null if the user's prefers_time_blocks value is false"
+                      },
+                      "end_time": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^([0-1][0-9]|2[0-3]):[0-5][0-9]$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "HH:MM format in military time OR null if the user's prefers_time_blocks value is false"
+                      },
+                      "tasks": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "title": {
+                              "type": "string",
+                              "description": "A title which briefly describes the given task"
+                            },
+                            "description": {
+                              "type": "string",
+                              "description": "In-depth notes detailing exactly what the user needs to do in order to complete the current task"
+                            },
+                            "estimated_minutes": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "description": "An integer value that estimates how long this task should take the user to complete"
+                            }
+                          },
+                          "required": [
+                            "title",
+                            "description",
+                            "estimated_minutes"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "minItems": 1,
+                        "description": "List of tasks for this time block"
+                      }
+                    },
+                    "required": [
+                      "label",
+                      "start_time",
+                      "end_time",
+                      "tasks"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "minItems": 1,
+                  "description": "List of time blocks for the day"
+                }
+              },
+              "required": [
+                "date",
+                "objective",
+                "time_blocks"
+              ],
+              "additionalProperties": false
             },
-            required: [
-              "goal_id",
-              "date",
-              "start_time",
-              "end_time",
-              "title",
-              "description",
-              "difficulty",
-              "estimated_duration_minutes",
-            ],
-            additionalProperties: false,
-          },
+            "minItems": 1,
+            "description": "List of daily tasks for the week"
+          }
         },
-      },
-      required: ["plan"],
-      additionalProperties: false,
+        "required": [
+          "weekly_tasks"
+        ],
+        "additionalProperties": false
+      }
     },
   },
 };

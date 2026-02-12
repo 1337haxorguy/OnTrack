@@ -12,7 +12,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_KEY });
 const SYSTEM_PROMPT = `You are a productivity planning assistant. Given a user's goals, skill level, timeframe, and availability, generate a structured daily task plan.
 
 Rules:
-- Keep task descriptions actionable and specific.
+- Keep task descriptions actionable and specific. WOW
 - Tasks should cover all phases of achieving the goal — not just preparation, but also execution and follow-through.
 - Return ONLY valid JSON matching the output schema, no extra text.`;
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
 
 const API_BASE = "http://localhost:3000";
 
@@ -58,14 +59,28 @@ function App() {
   const [regenIndex, setRegenIndex] = useState<number | null>(null);
   const [regenFeedback, setRegenFeedback] = useState("");
   const [regenLoading, setRegenLoading] = useState(false);
-  const [user, setUser] = useState<{ name?: string; email?: string } | null>(null);
+
+  const { user, isAuthenticated, isLoading, loginWithRedirect, logout, getAccessTokenSilently } = useAuth0();
 
   useEffect(() => {
-    fetch(`${API_BASE}/profile`, { credentials: "include" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => { if (data) setUser(data); })
-      .catch(() => {});
-  }, []);
+    if (!isAuthenticated || !user) return;
+    const syncUserWithBackend = async () => {
+      try {
+        const token = await getAccessTokenSilently();
+        await fetch(`${API_BASE}/api/sync-user`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ email: user.email }),
+        });
+      } catch (e) {
+        console.error("Failed to sync user:", e);
+      }
+    };
+    syncUserWithBackend();
+  }, [isAuthenticated, user, getAccessTokenSilently]);
 
   const updateGoal = (index: number, field: string, value: string) => {
     setGoals((prev) => {
@@ -105,9 +120,13 @@ function App() {
     setError("");
     setPlan(null);
     try {
-      const res = await fetch("http://localhost:3000/api/generate", {
+      const token = await getAccessTokenSilently();
+      const res = await fetch(`${API_BASE}/api/generate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           user_profile: {
             goals,
@@ -138,9 +157,13 @@ function App() {
     if (!plan || !regenFeedback.trim()) return;
     setRegenLoading(true);
     try {
-      const res = await fetch("http://localhost:3000/api/generate/regenerate-task", {
+      const token = await getAccessTokenSilently();
+      const res = await fetch(`${API_BASE}/api/generate/regenerate-task`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           task: plan[index],
           feedback: regenFeedback,
@@ -172,23 +195,25 @@ function App() {
       <nav className="flex items-center justify-between py-4 mb-6 border-b border-gray-700">
         <h1 className="text-3xl font-bold">OnTrack</h1>
         <div className="flex items-center gap-3">
-          {user ? (
+          {isLoading ? (
+            <span className="text-sm text-gray-400">Loading...</span>
+          ) : isAuthenticated && user ? (
             <>
               <span className="text-sm text-gray-400">{user.name || user.email}</span>
-              <a
-                href={`${API_BASE}/logout`}
+              <button
+                onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
                 className="px-4 py-1.5 text-sm border border-gray-600 rounded bg-gray-800 text-white hover:bg-gray-700"
               >
                 Log out
-              </a>
+              </button>
             </>
           ) : (
-            <a
-              href={`${API_BASE}/login`}
+            <button
+              onClick={() => loginWithRedirect()}
               className="px-4 py-1.5 text-sm bg-indigo-600 rounded text-white hover:bg-indigo-700"
             >
               Log in
-            </a>
+            </button>
           )}
         </div>
       </nav>
@@ -324,5 +349,3 @@ function App() {
 }
 
 export default App;
-
-// TESTING

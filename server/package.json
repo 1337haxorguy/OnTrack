@@ -15,8 +15,8 @@
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
-    "express-openid-connect": "^2.19.4",
-    "mongoose": "^9.1.5",
+    "express-oauth2-jwt-bearer": "^1.7.4",
+    "mongoose": "^9.1.6",
     "openai": "^6.17.0"
   },
   "devDependencies": {
