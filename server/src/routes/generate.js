@@ -5,17 +5,41 @@ const router = express.Router();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_KEY });
 
-const SYSTEM_PROMPT = `You are a productivity planning assistant. Given a user's goals, skill level, timeframe, and availability, generate a structured daily task plan.
+const SYSTEM_PROMPT = 
+`You are a routine-planning engine that generates weekly schedules for general hobbies.
 
-The user message includes an "available_dates" array. This is the EXACT list of dates and time slots you are allowed to schedule tasks on. Do NOT schedule tasks on any date or time not in this list.
+Your role is to create structured, practical, and realistic weekly routines based on validated user input, prior weekly context, and user feedback.
 
-Rules:
-- ONLY use dates and time slots from the "available_dates" array. Every task's date and start_time/end_time must fall within one of the provided slots for that date.
-- Each task must fit within a single time slot (do not span across slots).
-- Keep task descriptions actionable and specific.
-- Tasks should cover all phases of achieving the goal — not just preparation, but also execution and follow-through.
-- If regenerating a single day, keep the rest of the plan consistent.
-- Return ONLY valid JSON matching the output schema, no extra text.`;
+SCOPE:
+- You generate exactly ONE week of a routine per request.
+- You do NOT generate multi-week plans in a single response.
+- You do NOT provide explanations, commentary, or advice outside the requested routine.
+
+INPUT HANDLING:
+- The user input is authoritative and already validated.
+- Do not invent goals, restrictions, preferences, or constraints not present in the input.
+- Previous weeks and user feedback are provided as context and should influence pacing, intensity, and structure for the current week only.
+- Do not modify or restate past weeks.
+
+CONSTRAINTS:
+- All numerical, scheduling, and structural constraints in the user input MUST be respected.
+- If constraints are tight or conflicting, generate the closest valid routine that satisfies the schema and honors the user’s intent.
+- Prefer consistency and sustainability over intensity unless explicitly requested otherwise.
+
+OUTPUT RULES:
+- Output JSON only.
+- The output MUST strictly conform to the provided JSON schema.
+- Do not include markdown, comments, or natural language explanations.
+- All required fields must be present.
+- No additional fields are allowed.
+- Dates, counts, and durations must be internally consistent.
+
+FAILURE HANDLING:
+- If any constraint cannot be perfectly satisfied, still return a valid JSON object that follows the schema and best satisfies the constraints.
+- Do not ask clarifying questions.
+- Do not output partial data.
+
+You are a deterministic planning system, not a conversational assistant.`;
 
 const OUTPUT_SCHEMA = {
   type: "json_schema",
@@ -23,9 +47,6 @@ const OUTPUT_SCHEMA = {
     name: "task_plan",
     strict: true,
     schema: {
-      "name": "weekly_schedule_output",
-      "strict": true,
-      "schema": {
         "type": "object",
         "properties": {
           "weekly_tasks": {
@@ -132,7 +153,6 @@ const OUTPUT_SCHEMA = {
           "weekly_tasks"
         ],
         "additionalProperties": false
-      }
     },
   },
 };
@@ -174,12 +194,71 @@ router.post("/", async (req, res) => {
 
   const availableDates = computeAvailableDates(user_profile.availability, user_profile.goals);
 
-  const userMessage = JSON.stringify({
-    user_profile,
-    generation_request,
-    existing_plan: existing_plan || [],
-    available_dates: availableDates,
-  });
+  const userMessage = 
+`
+TASK:
+Generate the routine for EXACTLY one week.
+
+AUTHORITATIVE USER INPUT:
+The following JSON has been validated against the input schema and must be treated as complete and authoritative.
+Do not invent, infer, or assume any information beyond what is explicitly provided.
+
+{
+
+  "hobby_title": "Guitar Practice",
+  "goals": [
+    "Learn 8 songs from memory",
+    "Improve barre chord transitions and endurance"
+  ],
+  "restrictions": [
+    "Cannot practice loudly after 21:00",
+    "Occasional wrist soreness"
+  ],
+  "requests": [
+    "Include warm-up and cool-down in each session",
+    "Balance technique drills with song work"
+  ],
+  "additional_context": "Intermediate player with more availability on weekends. Prefers early evenings on weekdays.",
+  "followup_questions": [
+    {
+      "question": "What style of music do you primarily want to focus on?",
+      "user_response": "I'm interested in fingerstyle acoustic and some classic rock"
+    },
+    {
+      "question": "Do you have any upcoming performances or deadlines?",
+      "user_response": "Yes, I'd like to perform at an open mic night in 2 months"
+    }
+  ],
+  "timezone": "America/New_York",
+  "start_date": "2026-02-10",
+  "target_end_date": "2026-03-31",
+  "days_per_week": 4,
+  "prefers_time_blocks": true,
+  "min_intraday_frequency": 1,
+  "max_intraday_frequency": 2,
+  "min_hours_per_week": 4,
+  "max_hours_per_week": 6
+}
+
+TARGET:
+Generate the routine for week_index = 1 only.
+
+REQUIREMENTS:
+- Follow all constraints defined in the authoritative user input.
+- Use responses from followup_questions to refine focus, pacing, and task selection.
+- daily_tasks MUST contain EXACTLY 4 entries.
+- time_blocks per day MUST be within [1, 2].
+- Total estimated_minutes across the entire week MUST be within [240, 360].
+- Because prefers_time_blocks = true, every time block MUST include non-null start_time and end_time in HH:MM 24-hour format.
+- Output JSON only and strictly conform to the provided output schema.
+`
+  
+  // JSON.stringify({
+  //   user_profile,
+  //   generation_request,
+  //   existing_plan: existing_plan || [],
+  //   available_dates: availableDates,
+  // });
 
   try {
     const completion = await openai.chat.completions.create({
