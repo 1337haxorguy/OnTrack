@@ -18,7 +18,7 @@ mongoose.connect(process.env.MONGODB_URI)
 app.use(cors({ origin: "http://localhost:5173", credentials: true }));
 app.use(express.json());
 
-app.use("/api/generate", jwtCheck, generateRoute);
+app.use("/api/generate", generateRoute);
 app.use("/api/sync-user", jwtCheck, syncUserRoute);
 app.use("/api/playground", playgroundRoute);
 
