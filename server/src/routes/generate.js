@@ -192,7 +192,7 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ error: "user_profile and generation_request are required." });
   }
 
-  const availableDates = computeAvailableDates(user_profile.availability, user_profile.goals);
+  // const availableDates = computeAvailableDates(user_profile.availability, user_profile.goals);
 
   const userMessage = 
 `
@@ -324,4 +324,4 @@ router.post("/regenerate-task", async (req, res) => {
 module.exports = router;
 
 
-// hi THERE WOOO dhjsfkkj another push weekend push
+// hi THERE WOOO dhjsfkkj another push weekend push thursday push
