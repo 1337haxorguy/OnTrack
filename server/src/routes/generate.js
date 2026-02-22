@@ -27,11 +27,7 @@ CONSTRAINTS:
 - Prefer consistency and sustainability over intensity unless explicitly requested otherwise.
 
 OUTPUT RULES:
-- Output JSON only.
 - The output MUST strictly conform to the provided JSON schema.
-- Do not include markdown, comments, or natural language explanations.
-- All required fields must be present.
-- No additional fields are allowed.
 - Dates, counts, and durations must be internally consistent.
 
 FAILURE HANDLING:
@@ -194,7 +190,7 @@ router.post("/", async (req, res) => {
 
   // const availableDates = computeAvailableDates(user_profile.availability, user_profile.goals);
 
-  const userMessage = 
+  const HARDCODED_USER_MESSAGE =
 `
 TASK:
 Generate the routine for EXACTLY one week.
@@ -251,14 +247,56 @@ REQUIREMENTS:
 - Total estimated_minutes across the entire week MUST be within [240, 360].
 - Because prefers_time_blocks = true, every time block MUST include non-null start_time and end_time in HH:MM 24-hour format.
 - Output JSON only and strictly conform to the provided output schema.
+`;
+
+  const p = user_profile;
+  const week_index = generation_request.week_index || 1;
+
+  const inputJson = JSON.stringify({
+    hobby_title: p.hobby_title,
+    goals: p.goals,
+    restrictions: p.restrictions,
+    requests: p.requests,
+    additional_context: p.additional_context,
+    followup_questions: p.followup_questions,
+    timezone: p.timezone,
+    start_date: p.start_date,
+    target_end_date: p.target_end_date,
+    days_per_week: p.days_per_week,
+    prefers_time_blocks: p.prefers_time_blocks,
+    min_intraday_frequency: p.min_intraday_frequency,
+    max_intraday_frequency: p.max_intraday_frequency,
+    min_hours_per_week: p.min_hours_per_week,
+    max_hours_per_week: p.max_hours_per_week,
+  }, null, 2);
+
+  const timeBlockRule = p.prefers_time_blocks
+    ? "- Because prefers_time_blocks = true, every time block MUST include non-null start_time and end_time in HH:MM 24-hour format."
+    : "- Because prefers_time_blocks = false, every time block MUST have start_time and end_time set to null.";
+
+  const userMessage =
 `
-  
-  // JSON.stringify({
-  //   user_profile,
-  //   generation_request,
-  //   existing_plan: existing_plan || [],
-  //   available_dates: availableDates,
-  // });
+TASK:
+Generate the routine for EXACTLY one week.
+
+AUTHORITATIVE USER INPUT:
+The following JSON has been validated against the input schema and must be treated as complete and authoritative.
+Do not invent, infer, or assume any information beyond what is explicitly provided.
+
+${inputJson}
+
+TARGET:
+Generate the routine for week_index = ${week_index} only.
+
+REQUIREMENTS:
+- Follow all constraints defined in the authoritative user input.
+- Use responses from followup_questions to refine focus, pacing, and task selection.
+- daily_tasks MUST contain EXACTLY ${p.days_per_week} entries.
+- time_blocks per day MUST be within [${p.min_intraday_frequency}, ${p.max_intraday_frequency}].
+- CRITICAL TIME CONSTRAINT: The SUM of every estimated_minutes value across ALL tasks in ALL days of the week MUST be >= ${p.min_hours_per_week * 60} and <= ${p.max_hours_per_week * 60}. Do NOT exceed ${p.max_hours_per_week * 60} total minutes. Aim for roughly ${Math.round(p.min_hours_per_week * 60 / p.days_per_week)}-${Math.round(p.max_hours_per_week * 60 / p.days_per_week)} minutes per day.
+${timeBlockRule}
+- Output JSON only and strictly conform to the provided output schema.
+`;
 
   try {
     const completion = await openai.chat.completions.create({
