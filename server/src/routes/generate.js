@@ -5,7 +5,7 @@ const router = express.Router();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_KEY });
 
-const SYSTEM_PROMPT = 
+const SYSTEM_PROMPT =
 `You are a routine-planning engine that generates weekly schedules for general hobbies.
 
 Your role is to create structured, practical, and realistic weekly routines based on validated user input, prior weekly context, and user feedback.
@@ -23,7 +23,7 @@ INPUT HANDLING:
 
 CONSTRAINTS:
 - All numerical, scheduling, and structural constraints in the user input MUST be respected.
-- If constraints are tight or conflicting, generate the closest valid routine that satisfies the schema and honors the user’s intent.
+- If constraints are tight or conflicting, generate the closest valid routine that satisfies the schema and honors the user's intent.
 - Prefer consistency and sustainability over intensity unless explicitly requested otherwise.
 
 OUTPUT RULES:
@@ -153,130 +153,161 @@ const OUTPUT_SCHEMA = {
   },
 };
 
-function computeAvailableDates(availability, goals) {
-  const { weekly_schedule, blocked_dates = [] } = availability;
-  const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-  const blocked = new Set(blocked_dates);
+// Build prompt from new structured format (App.tsx)
+function buildNewFormatMessage(goals, availability, preferences) {
+  const { timezone = "UTC", free_slots = {}, recurring_blocks = [], specific_blocks = [] } = availability;
+  const { sessions_per_day = 1 } = preferences || {};
 
+  // Determine date range from goals
   let startDate = null;
   let endDate = null;
   for (const goal of goals) {
+    if (!goal.timeframe?.start_date || !goal.timeframe?.end_date) continue;
     const s = new Date(goal.timeframe.start_date + "T00:00:00");
     const e = new Date(goal.timeframe.end_date + "T00:00:00");
     if (!startDate || s < startDate) startDate = s;
     if (!endDate || e > endDate) endDate = e;
   }
 
-  const dates = [];
-  const current = new Date(startDate);
-  while (current <= endDate) {
-    const dateStr = current.toISOString().split("T")[0];
-    const dayName = dayNames[current.getDay()];
-    const slots = weekly_schedule[dayName] || [];
-    if (slots.length > 0 && !blocked.has(dateStr)) {
-      dates.push({ date: dateStr, day: dayName, slots });
-    }
-    current.setDate(current.getDate() + 1);
+  if (!startDate || !endDate) {
+    startDate = new Date();
+    endDate = new Date();
+    endDate.setDate(endDate.getDate() + 7);
   }
-  return dates;
+
+  // days_per_week: union of selected_days across goals, fallback to free_slots
+  const allSelectedDays = new Set();
+  for (const goal of goals) {
+    (goal.selected_days || []).forEach(d => allSelectedDays.add(d));
+  }
+  const activeDays = allSelectedDays.size > 0
+    ? Array.from(allSelectedDays).map(d => [d, free_slots[d] || []])
+    : Object.entries(free_slots).filter(([, slots]) => Array.isArray(slots) && slots.length > 0);
+  const days_per_week = Math.max(1, activeDays.length);
+
+  // Total hours: sum per-goal commitments
+  const totalHours = goals.reduce((s, g) => s + (g.hours_per_week || 2), 0);
+
+  // Build rich goal descriptions with all context
+  const goalDescs = goals.map(g => {
+    const lines = [
+      `- "${g.title}" | Level: ${g.skill_level} | ${g.timeframe?.start_date} → ${g.timeframe?.end_date} | ${g.hours_per_week || 2} hrs/week`,
+    ];
+    if (g.selected_days?.length > 0) {
+      lines.push(`  Preferred days: ${g.selected_days.join(", ")}`);
+    }
+    if (g.has_daily_limit && g.daily_limit_minutes) {
+      lines.push(`  Daily limit: max ${g.daily_limit_minutes} min/day`);
+    }
+    if (g.restrictions?.length > 0) {
+      lines.push(`  Restrictions: ${g.restrictions.join(" | ")}`);
+    }
+    if (g.requests?.length > 0) {
+      lines.push(`  Requests: ${g.requests.join(" | ")}`);
+    }
+    if (g.additional_context) {
+      lines.push(`  Context: ${g.additional_context}`);
+    }
+    if (g.followup_questions?.length > 0) {
+      lines.push("  Q&A:");
+      for (const fq of g.followup_questions) {
+        lines.push(`    Q: ${fq.question}`);
+        lines.push(`    A: ${fq.user_response}`);
+      }
+    }
+    return lines.join("\n");
+  }).join("\n\n");
+
+  const freeTimeDesc = activeDays.length > 0
+    ? activeDays.map(([day, slots]) => {
+        const slotStr = Array.isArray(slots) && slots.length > 0
+          ? slots.map(s => `${s.start}–${s.end}`).join(", ")
+          : "open";
+        return `  ${day}: ${slotStr}`;
+      }).join("\n")
+    : "  No specific free slots provided — distribute sessions on reasonable days";
+
+  const recurringDesc = recurring_blocks.length > 0
+    ? recurring_blocks.map(b =>
+        `  - ${b.label}: ${b.days.join(", ")} ${b.start_time}–${b.end_time} (BLOCKED — do NOT schedule here)`
+      ).join("\n")
+    : "  None";
+
+  const specificDesc = specific_blocks.length > 0
+    ? specific_blocks.map(b =>
+        `  - ${b.date}: ${b.all_day ? "All day" : `${b.start_time}–${b.end_time}`}${b.label ? ` (${b.label})` : ""} (BLOCKED)`
+      ).join("\n")
+    : "  None";
+
+  const minMinutes = Math.max(60, (totalHours - 1) * 60);
+  const maxMinutes = (totalHours + 1) * 60;
+  const maxBlocksPerDay = sessions_per_day >= 2 ? 2 : 1;
+
+  return `TASK:
+Generate the routine for EXACTLY one week starting from ${startDate.toISOString().split("T")[0]}.
+
+GOALS:
+${goalDescs}
+
+AVAILABLE TIME (when user is free to work on their goals):
+${freeTimeDesc}
+
+RECURRING COMMITMENTS (user is NOT available during these times):
+${recurringDesc}
+
+SPECIFIC BLOCKED DATES/TIMES:
+${specificDesc}
+
+TIMEZONE: ${timezone}
+
+CONSTRAINTS:
+- Generate exactly ${days_per_week} day entries in weekly_tasks
+- Prefer days listed in each goal's "Preferred days"; if none specified, use days with free slots
+- Schedule sessions within the user's free time windows; do NOT schedule during recurring commitments or blocked dates
+- Honor per-goal daily limits if specified
+- Total estimated_minutes across ALL tasks MUST be between ${minMinutes} and ${maxMinutes}
+- Each day should have 1–${maxBlocksPerDay} time block(s)
+- Every time block MUST include non-null start_time and end_time in HH:MM 24-hour format
+- Strictly respect each goal's restrictions (do not assign tasks that violate them)
+- Incorporate each goal's requests into the session structure
+- Use Q&A responses and additional context to tailor difficulty, content, and focus — a user who says they already know basics should NOT get beginner content
+- Output JSON only and strictly conform to the provided output schema.`;
 }
 
 router.post("/", async (req, res) => {
-  const { user_profile, generation_request, existing_plan } = req.body;
+  const { user_profile, goals, availability, preferences, generation_request } = req.body;
 
-  if (!user_profile || !generation_request) {
-    return res.status(400).json({ error: "user_profile and generation_request are required." });
-  }
+  let userMessage;
 
-  // const availableDates = computeAvailableDates(user_profile.availability, user_profile.goals);
+  if (user_profile && user_profile.hobby_title) {
+    // Legacy format (TestGenerate.tsx)
+    const p = user_profile;
+    const week_index = generation_request?.week_index || 1;
 
-  const HARDCODED_USER_MESSAGE =
-`
-TASK:
-Generate the routine for EXACTLY one week.
+    const inputJson = JSON.stringify({
+      hobby_title: p.hobby_title,
+      goals: p.goals,
+      restrictions: p.restrictions,
+      requests: p.requests,
+      additional_context: p.additional_context,
+      followup_questions: p.followup_questions,
+      timezone: p.timezone,
+      start_date: p.start_date,
+      target_end_date: p.target_end_date,
+      days_per_week: p.days_per_week,
+      prefers_time_blocks: p.prefers_time_blocks,
+      min_intraday_frequency: p.min_intraday_frequency,
+      max_intraday_frequency: p.max_intraday_frequency,
+      min_hours_per_week: p.min_hours_per_week,
+      max_hours_per_week: p.max_hours_per_week,
+    }, null, 2);
 
-AUTHORITATIVE USER INPUT:
-The following JSON has been validated against the input schema and must be treated as complete and authoritative.
-Do not invent, infer, or assume any information beyond what is explicitly provided.
+    const timeBlockRule = p.prefers_time_blocks
+      ? "- Because prefers_time_blocks = true, every time block MUST include non-null start_time and end_time in HH:MM 24-hour format."
+      : "- Because prefers_time_blocks = false, every time block MUST have start_time and end_time set to null.";
 
-{
-
-  "hobby_title": "Guitar Practice",
-  "goals": [
-    "Learn 8 songs from memory",
-    "Improve barre chord transitions and endurance"
-  ],
-  "restrictions": [
-    "Cannot practice loudly after 21:00",
-    "Occasional wrist soreness"
-  ],
-  "requests": [
-    "Include warm-up and cool-down in each session",
-    "Balance technique drills with song work"
-  ],
-  "additional_context": "Intermediate player with more availability on weekends. Prefers early evenings on weekdays.",
-  "followup_questions": [
-    {
-      "question": "What style of music do you primarily want to focus on?",
-      "user_response": "I'm interested in fingerstyle acoustic and some classic rock"
-    },
-    {
-      "question": "Do you have any upcoming performances or deadlines?",
-      "user_response": "Yes, I'd like to perform at an open mic night in 2 months"
-    }
-  ],
-  "timezone": "America/New_York",
-  "start_date": "2026-02-10",
-  "target_end_date": "2026-03-31",
-  "days_per_week": 4,
-  "prefers_time_blocks": true,
-  "min_intraday_frequency": 1,
-  "max_intraday_frequency": 2,
-  "min_hours_per_week": 4,
-  "max_hours_per_week": 6
-}
-
-TARGET:
-Generate the routine for week_index = 1 only.
-
-REQUIREMENTS:
-- Follow all constraints defined in the authoritative user input.
-- Use responses from followup_questions to refine focus, pacing, and task selection.
-- daily_tasks MUST contain EXACTLY 4 entries.
-- time_blocks per day MUST be within [1, 2].
-- Total estimated_minutes across the entire week MUST be within [240, 360].
-- Because prefers_time_blocks = true, every time block MUST include non-null start_time and end_time in HH:MM 24-hour format.
-- Output JSON only and strictly conform to the provided output schema.
-`;
-
-  const p = user_profile;
-  const week_index = generation_request.week_index || 1;
-
-  const inputJson = JSON.stringify({
-    hobby_title: p.hobby_title,
-    goals: p.goals,
-    restrictions: p.restrictions,
-    requests: p.requests,
-    additional_context: p.additional_context,
-    followup_questions: p.followup_questions,
-    timezone: p.timezone,
-    start_date: p.start_date,
-    target_end_date: p.target_end_date,
-    days_per_week: p.days_per_week,
-    prefers_time_blocks: p.prefers_time_blocks,
-    min_intraday_frequency: p.min_intraday_frequency,
-    max_intraday_frequency: p.max_intraday_frequency,
-    min_hours_per_week: p.min_hours_per_week,
-    max_hours_per_week: p.max_hours_per_week,
-  }, null, 2);
-
-  const timeBlockRule = p.prefers_time_blocks
-    ? "- Because prefers_time_blocks = true, every time block MUST include non-null start_time and end_time in HH:MM 24-hour format."
-    : "- Because prefers_time_blocks = false, every time block MUST have start_time and end_time set to null.";
-
-  const userMessage =
-`
-TASK:
+    userMessage =
+`TASK:
 Generate the routine for EXACTLY one week.
 
 AUTHORITATIVE USER INPUT:
@@ -297,6 +328,12 @@ REQUIREMENTS:
 ${timeBlockRule}
 - Output JSON only and strictly conform to the provided output schema.
 `;
+  } else if (goals && availability) {
+    // New format (App.tsx)
+    userMessage = buildNewFormatMessage(goals, availability, preferences);
+  } else {
+    return res.status(400).json({ error: "Invalid request: provide either user_profile (legacy) or goals + availability." });
+  }
 
   try {
     const completion = await openai.chat.completions.create({
@@ -308,59 +345,65 @@ ${timeBlockRule}
       response_format: OUTPUT_SCHEMA,
     });
 
-    const plan = JSON.parse(completion.choices[0].message.content);
-    res.json(plan);
+    const result = JSON.parse(completion.choices[0].message.content);
+    res.json(result);
   } catch (err) {
     console.error("OpenAI API error:", err.message);
     res.status(500).json({ error: "Failed to generate plan." });
   }
 });
 
-const REGENERATE_SYSTEM_PROMPT = `You are a productivity planning assistant. The user wants to regenerate a single task from their existing plan. They will provide the original task and feedback on what they want changed.
+router.post("/regenerate-day", async (req, res) => {
+  const { date, current_day_plan, feedback, goals, availability } = req.body;
 
-Rules:
-- Return exactly ONE replacement task.
-- The new task MUST keep the same date and fit within the provided time slot for that date.
-- Incorporate the user's feedback into the new task.
-- Return ONLY valid JSON matching the output schema, no extra text.`;
-
-router.post("/regenerate-task", async (req, res) => {
-  const { task, feedback, user_profile } = req.body;
-
-  if (!task || !feedback) {
-    return res.status(400).json({ error: "task and feedback are required." });
+  if (!date || !goals || !availability) {
+    return res.status(400).json({ error: "date, goals, and availability are required." });
   }
 
-  const availableDates = computeAvailableDates(user_profile.availability, user_profile.goals);
-  const dateSlots = availableDates.find((d) => d.date === task.date);
+  const dayOfWeek = new Date(date + "T00:00:00").toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
+  const freeSlots = (availability.free_slots || {})[dayOfWeek] || [];
 
-  const userMessage = JSON.stringify({
-    original_task: task,
-    feedback,
-    available_slots: dateSlots ? dateSlots.slots : [],
-    goal: user_profile.goals.find((g) => g.id === task.goal_id) || null,
-  });
+  const goalDescs = goals.map(g => `- "${g.title}" (${g.skill_level})`).join("\n");
+  const slotsDesc = freeSlots.length > 0
+    ? freeSlots.map(s => `${s.start}–${s.end}`).join(", ")
+    : "flexible timing";
+
+  const userMessage =
+`TASK:
+Regenerate the schedule for ${date} (${dayOfWeek}).
+
+GOALS:
+${goalDescs}
+
+AVAILABLE TIME ON THIS DAY:
+${slotsDesc}
+${feedback ? `\nUSER FEEDBACK:\n${feedback}` : ""}
+${current_day_plan ? `\nCURRENT SCHEDULE TO REPLACE:\n${JSON.stringify(current_day_plan, null, 2)}` : ""}
+
+CONSTRAINTS:
+- Generate EXACTLY 1 entry in weekly_tasks for date ${date}
+- Include 1–2 time blocks
+- Schedule tasks within the available time window
+- Every time block MUST have start_time and end_time in HH:MM 24-hour format
+- Output JSON only and strictly conform to the provided output schema.`;
 
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
-        { role: "system", content: REGENERATE_SYSTEM_PROMPT },
+        { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userMessage },
       ],
       response_format: OUTPUT_SCHEMA,
     });
 
     const result = JSON.parse(completion.choices[0].message.content);
-    res.json({ task: result.plan[0] });
+    const dayPlan = result.weekly_tasks?.[0] ?? null;
+    res.json(dayPlan);
   } catch (err) {
     console.error("OpenAI API error:", err.message);
-    res.status(500).json({ error: "Failed to regenerate task." });
+    res.status(500).json({ error: "Failed to regenerate day." });
   }
 });
 
 module.exports = router;
-
-
-// hi THERE WOOO dhjsfkkj another push weekend push thursday push
-// hi THERE WOOO dhjsfkkj another push weekend push another push WOOO weeekend moment GENERATIONAL git add woooooo
