@@ -175,8 +175,8 @@ export default function Landing() {
 
         {/* Headline */}
         <h1 className="relative text-4xl sm:text-5xl font-bold tracking-tight text-white leading-tight mb-5">
-          Stop meaning to start.{" "}
-          <span className="text-indigo-400">Actually start.</span>
+          Your goals,{" "}
+          <span className="text-indigo-400">your pace.</span>
         </h1>
 
         {/* Subtext */}
