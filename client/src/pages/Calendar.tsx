@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import type { DayPlan, TimeBlock } from "../context/AppContext";
@@ -6,27 +6,264 @@ import { useAuth0 } from "@auth0/auth0-react";
 
 const API_BASE = "http://localhost:3000";
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "short",
-    day: "numeric",
-  });
+// ---- Grid constants ----
+const HOUR_HEIGHT = 64;
+const START_HOUR = 6;
+const END_HOUR = 23;
+const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
+const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+type CalendarView = "day" | "week" | "month";
+
+// ---- Helpers ----
+function getWeekStart(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
+function addDays(date: Date, n: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+function toDateStr(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function timeToMinutes(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + (m || 0);
+}
+
+function minsToTime(m: number): string {
+  const h = Math.floor(m / 60) % 24;
+  const min = m % 60;
+  return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+}
+
+function formatHour(h: number): string {
+  if (h === 0) return "12 AM";
+  if (h === 12) return "12 PM";
+  return h < 12 ? `${h} AM` : `${h - 12} PM`;
+}
+
+function formatTime(t: string): string {
+  const [h, m] = t.split(":").map(Number);
+  const period = h < 12 ? "AM" : "PM";
+  const hour = h % 12 || 12;
+  return m === 0 ? `${hour} ${period}` : `${hour}:${m.toString().padStart(2, "0")} ${period}`;
+}
+
+function getMonthGrid(year: number, month: number): Date[][] {
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  let current = getWeekStart(firstDay);
+  const weeks: Date[][] = [];
+  while (current <= lastDay) {
+    const week: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      week.push(new Date(current));
+      current = addDays(current, 1);
+    }
+    weeks.push(week);
+  }
+  return weeks;
+}
+
+function formatViewLabel(view: CalendarView, viewDate: Date): string {
+  if (view === "day") {
+    return viewDate.toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+  if (view === "month") {
+    return viewDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  }
+  const start = getWeekStart(viewDate);
+  const end = addDays(start, 6);
+  const s = start.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const e = end.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return `${s} – ${e}`;
+}
+
+// ---- Types ----
+interface SelectedEvent {
+  dayPlan: DayPlan;
+  dayIdx: number;
+  block: TimeBlock;
+  blockIdx: number;
+}
+
+interface DragState {
+  block: TimeBlock;
+  dayPlan: DayPlan;
+  dayIdx: number;
+  blockIdx: number;
+  offsetMins: number;
+  originalDate: string;
+  previewDate: string;
+  previewStartMins: number;
+  active: boolean;
+  startX: number;
+  startY: number;
+}
+
+// ---- Component ----
 export default function Calendar() {
   const { goals, schedule, plan, setPlan } = useApp();
   const { isAuthenticated, getAccessTokenSilently } = useAuth0();
 
+  const [view, setView] = useState<CalendarView>("week");
+  const [viewDate, setViewDate] = useState<Date>(() => {
+    if (plan && plan.length > 0) return new Date(plan[0].date + "T00:00:00");
+    return new Date();
+  });
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [regenDayIdx, setRegenDayIdx] = useState<number | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<SelectedEvent | null>(null);
+  const [modalMode, setModalMode] = useState<"detail" | "regen" | "reschedule">("detail");
   const [regenFeedback, setRegenFeedback] = useState("");
   const [regenLoading, setRegenLoading] = useState(false);
-  const [reschedule, setReschedule] = useState<{ dayIdx: number; blockIdx: number } | null>(null);
   const [rsDate, setRsDate] = useState("");
   const [rsStart, setRsStart] = useState("");
-  const [rsEnd, setRsEnd] = useState("");
+
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const dragRef = useRef<DragState | null>(null);
+  const weekDaysRef = useRef<Date[]>([]);
+  const viewRef = useRef(view);
+  const today = toDateStr(new Date());
+
+  // Scroll to 7 AM when switching to timed views
+  useEffect(() => {
+    if ((view === "week" || view === "day") && gridRef.current) {
+      gridRef.current.scrollTop = (7 - START_HOUR) * HOUR_HEIGHT;
+    }
+  }, [view]);
+
+  // Drag-to-reschedule pointer events
+  useEffect(() => {
+    if (!drag) return;
+
+    const onMove = (e: PointerEvent) => {
+      const current = dragRef.current;
+      if (!current || !gridRef.current) return;
+
+      const dx = e.clientX - current.startX;
+      const dy = e.clientY - current.startY;
+      if (!current.active && Math.sqrt(dx * dx + dy * dy) < 5) return;
+
+      const gridEl = gridRef.current;
+      const gridRect = gridEl.getBoundingClientRect();
+      const scrollTop = gridEl.scrollTop;
+
+      const relativeY = e.clientY - gridRect.top + scrollTop;
+      const rawMins = START_HOUR * 60 + (relativeY / HOUR_HEIGHT) * 60 - current.offsetMins;
+      const durationMins = current.block.end_time
+        ? timeToMinutes(current.block.end_time) - timeToMinutes(current.block.start_time!)
+        : 60;
+      const snapped = Math.round(rawMins / 30) * 30;
+      const previewStartMins = Math.max(START_HOUR * 60, Math.min(snapped, END_HOUR * 60 - durationMins));
+
+      let previewDate = current.previewDate;
+      if (viewRef.current === "week" && weekDaysRef.current.length > 0) {
+        const gutterWidth = 56;
+        const relativeX = e.clientX - gridRect.left;
+        const colWidth = (gridRect.width - gutterWidth) / 7;
+        const colIdx = Math.max(0, Math.min(6, Math.floor((relativeX - gutterWidth) / colWidth)));
+        previewDate = toDateStr(weekDaysRef.current[colIdx]);
+      }
+
+      const next: DragState = { ...current, active: true, previewDate, previewStartMins };
+      dragRef.current = next;
+      setDrag(next);
+    };
+
+    const onUp = () => {
+      const current = dragRef.current;
+      if (!current) return;
+
+      if (current.active) {
+        const durationMins = current.block.end_time
+          ? timeToMinutes(current.block.end_time) - timeToMinutes(current.block.start_time!)
+          : 60;
+        const updatedBlock: TimeBlock = {
+          ...current.block,
+          start_time: minsToTime(current.previewStartMins),
+          end_time: minsToTime(current.previewStartMins + durationMins),
+        };
+        setPlan((prev) => {
+          if (!prev) return prev;
+          if (current.previewDate === current.originalDate) {
+            return prev.map((d, di) =>
+              di === current.dayIdx
+                ? { ...d, time_blocks: d.time_blocks.map((b, bi) => (bi === current.blockIdx ? updatedBlock : b)) }
+                : d
+            );
+          }
+          let newPlan = prev
+            .map((d, di) =>
+              di === current.dayIdx
+                ? { ...d, time_blocks: d.time_blocks.filter((_, bi) => bi !== current.blockIdx) }
+                : d
+            )
+            .filter((d) => d.time_blocks.length > 0);
+          const targetIdx = newPlan.findIndex((d) => d.date === current.previewDate);
+          if (targetIdx >= 0) {
+            newPlan[targetIdx] = {
+              ...newPlan[targetIdx],
+              time_blocks: [...newPlan[targetIdx].time_blocks, updatedBlock].sort(
+                (a, b) => timeToMinutes(a.start_time || "00:00") - timeToMinutes(b.start_time || "00:00")
+              ),
+            };
+          } else {
+            newPlan.push({ date: current.previewDate, objective: `Rescheduled: ${updatedBlock.label}`, time_blocks: [updatedBlock] });
+            newPlan.sort((a, b) => a.date.localeCompare(b.date));
+          }
+          return newPlan;
+        });
+      } else {
+        // No meaningful movement — treat as click, open detail modal
+        setSelectedEvent({ dayPlan: current.dayPlan, dayIdx: current.dayIdx, block: current.block, blockIdx: current.blockIdx });
+        setModalMode("detail");
+      }
+
+      dragRef.current = null;
+      setDrag(null);
+    };
+
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    return () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!drag]);
+
+  // Navigation
+  const navigate = (dir: 1 | -1) => {
+    if (view === "day") setViewDate((d) => addDays(d, dir));
+    else if (view === "week") setViewDate((d) => addDays(d, dir * 7));
+    else setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + dir, 1));
+  };
+
+  const goToDay = (d: Date) => {
+    setViewDate(d);
+    setView("day");
+  };
 
   const authHeaders = async (): Promise<Record<string, string>> => {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -42,8 +279,7 @@ export default function Calendar() {
     setLoading(true);
     setError("");
     setPlan(null);
-    setRegenDayIdx(null);
-    setReschedule(null);
+    setSelectedEvent(null);
     try {
       const totalHours = goals.reduce((s, g) => s + g.hours_per_week, 0);
       const res = await fetch(`${API_BASE}/api/generate`, {
@@ -62,6 +298,9 @@ export default function Calendar() {
         time_blocks: day.time_blocks.map((b) => ({ ...b, id: crypto.randomUUID() })),
       }));
       setPlan(planWithIds);
+      if (planWithIds.length > 0) {
+        setViewDate(new Date(planWithIds[0].date + "T00:00:00"));
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -69,11 +308,12 @@ export default function Calendar() {
     }
   };
 
-  const regenerateDay = async (dayIdx: number) => {
-    if (!plan) return;
+  const regenerateDay = async () => {
+    if (!plan || !selectedEvent) return;
     setRegenLoading(true);
     setError("");
     try {
+      const { dayIdx } = selectedEvent;
       const res = await fetch(`${API_BASE}/api/generate/regenerate-day`, {
         method: "POST",
         headers: await authHeaders(),
@@ -97,7 +337,7 @@ export default function Calendar() {
         };
         setPlan((prev) => prev!.map((d, i) => (i === dayIdx ? newDay : d)));
       }
-      setRegenDayIdx(null);
+      setSelectedEvent(null);
       setRegenFeedback("");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to regenerate day");
@@ -106,21 +346,45 @@ export default function Calendar() {
     }
   };
 
-  const openReschedule = (dayIdx: number, blockIdx: number) => {
-    const block = plan![dayIdx].time_blocks[blockIdx];
-    setReschedule({ dayIdx, blockIdx });
-    setRsDate(plan![dayIdx].date);
+  const openReschedule = () => {
+    if (!selectedEvent || !plan) return;
+    const { dayIdx, block } = selectedEvent;
+    setRsDate(plan[dayIdx].date);
     setRsStart(block.start_time || "");
-    setRsEnd(block.end_time || "");
+    setModalMode("reschedule");
+  };
+
+  const toggleTaskComplete = (dayIdx: number, blockIdx: number, taskIdx: number) => {
+    setPlan((prev) =>
+      prev!.map((d, di) =>
+        di !== dayIdx ? d : {
+          ...d,
+          time_blocks: d.time_blocks.map((b, bi) =>
+            bi !== blockIdx ? b : {
+              ...b,
+              tasks: b.tasks.map((t, ti) =>
+                ti !== taskIdx ? t : { ...t, completed: !t.completed }
+              ),
+            }
+          ),
+        }
+      )
+    );
   };
 
   const applyReschedule = () => {
-    if (!plan || !reschedule) return;
-    const { dayIdx, blockIdx } = reschedule;
+    if (!plan || !selectedEvent) return;
+    const { dayIdx, blockIdx } = selectedEvent;
+    const block = plan[dayIdx].time_blocks[blockIdx];
+    const durationMins =
+      block.start_time && block.end_time
+        ? timeToMinutes(block.end_time) - timeToMinutes(block.start_time)
+        : 60;
+    const newStartMins = timeToMinutes(rsStart);
     const updatedBlock = {
-      ...plan[dayIdx].time_blocks[blockIdx],
+      ...block,
       start_time: rsStart,
-      end_time: rsEnd,
+      end_time: minsToTime(newStartMins + durationMins),
     };
     if (rsDate === plan[dayIdx].date) {
       setPlan((prev) =>
@@ -154,212 +418,750 @@ export default function Calendar() {
       }
       setPlan(newPlan);
     }
-    setReschedule(null);
+    setSelectedEvent(null);
   };
 
-  // Empty states
+  // Keep refs in sync for use inside pointer event handlers
+  viewRef.current = view;
+
+  // Build date → plan lookup
+  const planByDate: Record<string, { dayPlan: DayPlan; dayIdx: number }> = {};
+  if (plan) {
+    plan.forEach((dayPlan, dayIdx) => {
+      planByDate[dayPlan.date] = { dayPlan, dayIdx };
+    });
+  }
+
+  const handleBlockPointerDown = (
+    e: React.PointerEvent,
+    block: TimeBlock,
+    dayPlan: DayPlan,
+    dayIdx: number,
+    blockIdx: number,
+    dateStr: string,
+  ) => {
+    if (!block.start_time) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const offsetMins = Math.max(0, ((e.clientY - rect.top) / HOUR_HEIGHT) * 60);
+    const state: DragState = {
+      block,
+      dayPlan,
+      dayIdx,
+      blockIdx,
+      offsetMins,
+      originalDate: dateStr,
+      previewDate: dateStr,
+      previewStartMins: timeToMinutes(block.start_time),
+      active: false,
+      startX: e.clientX,
+      startY: e.clientY,
+    };
+    setDrag(state);
+    dragRef.current = state;
+  };
+
+  // Current time
+  const now = new Date();
+  const currentTimeTop = ((now.getHours() + now.getMinutes() / 60) - START_HOUR) * HOUR_HEIGHT;
+
+  // ---- Shared: time grid column renderer ----
+  const renderTimeColumn = (d: Date, widthClass: string) => {
+    const dateStr = toDateStr(d);
+    const entry = planByDate[dateStr];
+    const isToday = dateStr === today;
+
+    const timedBlocks: { block: TimeBlock; blockIdx: number }[] = [];
+    const untimedBlocks: { block: TimeBlock; blockIdx: number }[] = [];
+
+    if (entry) {
+      entry.dayPlan.time_blocks.forEach((block, blockIdx) => {
+        if (block.start_time && block.end_time) {
+          timedBlocks.push({ block, blockIdx });
+        } else {
+          untimedBlocks.push({ block, blockIdx });
+        }
+      });
+    }
+
+    return (
+      <div key={dateStr} className={`${widthClass} relative border-l border-gray-700/40`}>
+        {HOURS.map((h) => (
+          <div
+            key={h}
+            className="absolute left-0 right-0 border-t border-gray-800/70"
+            style={{ top: `${(h - START_HOUR) * HOUR_HEIGHT}px` }}
+          />
+        ))}
+        {HOURS.map((h) => (
+          <div
+            key={`${h}-half`}
+            className="absolute left-0 right-0 border-t border-gray-800/30"
+            style={{ top: `${(h - START_HOUR) * HOUR_HEIGHT + HOUR_HEIGHT / 2}px` }}
+          />
+        ))}
+
+        {/* ---- Schedule overlays ---- */}
+        {(() => {
+          const dayName = d.toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
+          const totalGridMins = (END_HOUR - START_HOUR) * 60;
+
+          const overlayPos = (start: string, end: string) => {
+            const s = Math.max(timeToMinutes(start) - START_HOUR * 60, 0);
+            const e = Math.min(timeToMinutes(end) - START_HOUR * 60, totalGridMins);
+            if (e <= s) return null;
+            return { top: `${(s / 60) * HOUR_HEIGHT}px`, height: `${((e - s) / 60) * HOUR_HEIGHT}px` };
+          };
+
+          const freeSlots = schedule.free_slots[dayName] || [];
+          const recurringForDay = schedule.recurring_blocks.filter((rb) => rb.days.includes(dayName));
+          const specificForDay = schedule.specific_blocks.filter((sb) => sb.date === dateStr);
+
+          return (
+            <>
+              {/* Free time — subtle green tint */}
+              {freeSlots.map((slot, i) => {
+                const pos = overlayPos(slot.start, slot.end);
+                if (!pos) return null;
+                return (
+                  <div
+                    key={`free-${i}`}
+                    className="absolute left-0 right-0 bg-emerald-500/[0.08] pointer-events-none z-[1]"
+                    style={pos}
+                  />
+                );
+              })}
+
+              {/* Recurring blocked time — red tint with label */}
+              {recurringForDay.map((rb) => {
+                const pos = overlayPos(rb.start_time, rb.end_time);
+                if (!pos) return null;
+                const h = parseFloat(pos.height);
+                return (
+                  <div
+                    key={`rb-${rb.id}`}
+                    className="absolute left-0 right-0 bg-red-900/30 border-l-2 border-red-700/50 pointer-events-none z-[2] overflow-hidden"
+                    style={pos}
+                  >
+                    {h >= 18 && (
+                      <p className="text-[9px] text-red-400/80 font-medium px-1.5 pt-0.5 truncate leading-tight select-none">
+                        {rb.label}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Specific blocked dates */}
+              {specificForDay.map((sb) => {
+                if (sb.all_day) {
+                  return (
+                    <div
+                      key={`sb-${sb.id}`}
+                      className="absolute inset-0 bg-red-900/25 border-l-2 border-red-700/50 pointer-events-none z-[2] overflow-hidden"
+                    >
+                      <p className="text-[9px] text-red-400/80 font-medium px-1.5 pt-1 truncate leading-tight select-none">
+                        {sb.label || "Blocked"}
+                      </p>
+                    </div>
+                  );
+                }
+                const pos = overlayPos(sb.start_time, sb.end_time);
+                if (!pos) return null;
+                const h = parseFloat(pos.height);
+                return (
+                  <div
+                    key={`sb-${sb.id}`}
+                    className="absolute left-0 right-0 bg-red-900/30 border-l-2 border-red-700/50 pointer-events-none z-[2] overflow-hidden"
+                    style={pos}
+                  >
+                    {h >= 18 && (
+                      <p className="text-[9px] text-red-400/80 font-medium px-1.5 pt-0.5 truncate leading-tight select-none">
+                        {sb.label || "Blocked"}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </>
+          );
+        })()}
+
+        {isToday && <div className="absolute inset-0 bg-indigo-950/10 pointer-events-none" />}
+        {isToday && currentTimeTop > 0 && currentTimeTop < HOURS.length * HOUR_HEIGHT && (
+          <div
+            className="absolute left-0 right-0 z-10 flex items-center pointer-events-none"
+            style={{ top: `${currentTimeTop}px` }}
+          >
+            <div className="w-2 h-2 rounded-full bg-red-500 -ml-1 shrink-0" />
+            <div className="flex-1 h-px bg-red-500" />
+          </div>
+        )}
+        {timedBlocks.map(({ block, blockIdx }) => {
+          const startMins = Math.max(timeToMinutes(block.start_time!), START_HOUR * 60);
+          const endMins = Math.min(timeToMinutes(block.end_time!), END_HOUR * 60);
+          const top = ((startMins - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+          const height = Math.max(((endMins - startMins) / 60) * HOUR_HEIGHT, 22);
+          const isSelected =
+            selectedEvent?.dayIdx === entry!.dayIdx && selectedEvent?.blockIdx === blockIdx;
+          const isDragging = drag?.active && drag.dayIdx === entry!.dayIdx && drag.blockIdx === blockIdx;
+          const allDone = block.tasks.length > 0 && block.tasks.every((t) => t.completed);
+          return (
+            <div
+              key={block.id}
+              className={`absolute left-1 right-1 rounded-md px-1.5 py-1 text-left overflow-hidden select-none cursor-grab transition-opacity ${
+                isSelected
+                  ? `ring-2 z-10 ${allDone ? "bg-emerald-700 ring-emerald-400/40" : "bg-indigo-500 ring-indigo-300/40"}`
+                  : allDone
+                    ? "bg-emerald-800/80 hover:bg-emerald-700/80 z-[5]"
+                    : "bg-indigo-600/85 hover:bg-indigo-500 z-[5]"
+              } ${isDragging ? "opacity-30" : ""}`}
+              style={{ top: `${top}px`, height: `${height}px` }}
+              onPointerDown={(e) =>
+                handleBlockPointerDown(e, block, entry!.dayPlan, entry!.dayIdx, blockIdx, dateStr)
+              }
+            >
+              <p className="text-[11px] font-semibold text-white leading-tight truncate">{block.label}</p>
+              {height > 30 && block.start_time && block.end_time && (
+                <p className="text-[10px] text-indigo-200 leading-tight">
+                  {formatTime(block.start_time)} – {formatTime(block.end_time)}
+                </p>
+              )}
+              {height > 30 && block.tasks.length > 0 && (() => {
+                const done = block.tasks.filter((t) => t.completed).length;
+                const total = block.tasks.length;
+                if (done === 0) return null;
+                return (
+                  <p className={`text-[9px] leading-tight mt-0.5 ${done === total ? "text-emerald-300" : "text-indigo-300/70"}`}>
+                    {done === total ? "✓ Done" : `${done}/${total} done`}
+                  </p>
+                );
+              })()}
+            </div>
+          );
+        })}
+
+        {/* Drag ghost */}
+        {drag?.active && drag.previewDate === dateStr && (() => {
+          const durationMins = drag.block.end_time
+            ? timeToMinutes(drag.block.end_time) - timeToMinutes(drag.block.start_time!)
+            : 60;
+          const ghostStart = Math.max(drag.previewStartMins, START_HOUR * 60);
+          const ghostEnd = Math.min(ghostStart + durationMins, END_HOUR * 60);
+          const ghostTop = ((ghostStart - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+          const ghostHeight = Math.max(((ghostEnd - ghostStart) / 60) * HOUR_HEIGHT, 22);
+          return (
+            <div
+              className="absolute left-1 right-1 rounded-md px-1.5 py-1 bg-indigo-500/30 border-2 border-indigo-400 border-dashed z-20 pointer-events-none"
+              style={{ top: `${ghostTop}px`, height: `${ghostHeight}px` }}
+            >
+              <p className="text-[11px] font-semibold text-indigo-200 leading-tight truncate">{drag.block.label}</p>
+              {ghostHeight > 30 && (
+                <p className="text-[10px] text-indigo-300 leading-tight">
+                  {formatTime(minsToTime(ghostStart))} – {formatTime(minsToTime(ghostEnd))}
+                </p>
+              )}
+            </div>
+          );
+        })()}
+        {untimedBlocks.length > 0 && (
+          <div className="absolute top-2 left-1 right-1 flex flex-col gap-0.5 z-[5]">
+            {untimedBlocks.map(({ block, blockIdx }) => (
+              <button
+                key={block.id}
+                className={`rounded px-1.5 py-0.5 text-left transition-colors ${
+                  selectedEvent?.dayIdx === entry!.dayIdx && selectedEvent?.blockIdx === blockIdx
+                    ? "bg-violet-500"
+                    : "bg-violet-600/80 hover:bg-violet-500"
+                }`}
+                onClick={() => {
+                  setSelectedEvent({ dayPlan: entry!.dayPlan, dayIdx: entry!.dayIdx, block, blockIdx });
+                  setModalMode("detail");
+                }}
+              >
+                <p className="text-[10px] font-medium text-white truncate">{block.label}</p>
+                {block.tasks.length > 0 && (() => {
+                  const done = block.tasks.filter((t) => t.completed).length;
+                  const total = block.tasks.length;
+                  if (done === 0) return null;
+                  return (
+                    <p className={`text-[9px] leading-tight ${done === total ? "text-emerald-300" : "text-violet-300/70"}`}>
+                      {done === total ? "✓ Done" : `${done}/${total}`}
+                    </p>
+                  );
+                })()}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ---- Time gutter ----
+  const renderTimeGutter = () => (
+    <div className="w-14 shrink-0 relative select-none">
+      {HOURS.map((h) => (
+        <div
+          key={h}
+          className="absolute right-2 text-[10px] text-gray-600 tabular-nums"
+          style={{ top: `${(h - START_HOUR) * HOUR_HEIGHT - 7}px` }}
+        >
+          {formatHour(h)}
+        </div>
+      ))}
+    </div>
+  );
+
+  // ---- Empty state ----
   if (goals.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-32 text-center">
         <h2 className="text-xl font-bold mb-2">No goals set up yet</h2>
         <p className="text-gray-400 mb-6">Create a goal first, then generate your plan.</p>
-        <Link to="/goals/new" className="px-5 py-2.5 bg-indigo-600 rounded text-white hover:bg-indigo-700">
+        <Link
+          to="/goals/new"
+          className="px-5 py-2.5 bg-indigo-600 rounded-lg text-white hover:bg-indigo-700 transition-colors"
+        >
           Create a goal
         </Link>
       </div>
     );
   }
 
-  if (!plan && !loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-32 text-center">
-        <h2 className="text-xl font-bold mb-2">No plan yet</h2>
-        <p className="text-gray-400 mb-6">Generate a weekly plan based on your goals and schedule.</p>
-        <button
-          className="px-5 py-2.5 bg-indigo-600 rounded text-white hover:bg-indigo-700"
-          onClick={generate}
-        >
-          Generate Plan
-        </button>
-        {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
-      </div>
-    );
-  }
+  // ---- Derived ----
+  const weekStart = getWeekStart(viewDate);
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  weekDaysRef.current = weekDays;
+  const monthGrid = getMonthGrid(viewDate.getFullYear(), viewDate.getMonth());
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold">Calendar</h1>
-        <button
-          className="px-3 py-1.5 text-sm border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50 transition-colors"
-          onClick={generate}
-          disabled={loading}
-        >
-          {loading ? "Generating..." : "Regenerate All"}
-        </button>
-      </div>
+    <>
+      <div
+        className="flex flex-col rounded-xl border border-gray-700/60 overflow-hidden bg-gray-950"
+        style={{ height: "calc(100vh - 120px)" }}
+      >
+        {/* ---- Toolbar ---- */}
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-700/60 bg-gray-900/80 shrink-0">
+          <button
+            onClick={() => navigate(-1)}
+            className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-700 text-gray-400 hover:text-white transition-colors text-lg leading-none"
+          >
+            ‹
+          </button>
+          <button
+            onClick={() => navigate(1)}
+            className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-700 text-gray-400 hover:text-white transition-colors text-lg leading-none"
+          >
+            ›
+          </button>
+          <button
+            onClick={() => { setViewDate(new Date()); }}
+            className="px-2.5 py-1 text-xs border border-gray-600 rounded hover:bg-gray-700 text-gray-300 transition-colors"
+          >
+            Today
+          </button>
+          <h2 className="text-sm font-semibold text-white flex-1 ml-1">
+            {formatViewLabel(view, viewDate)}
+          </h2>
 
-      {error && (
-        <div className="mb-4 p-3 rounded border border-red-700 bg-red-950/50 text-red-300 text-sm">{error}</div>
-      )}
+          {error && <span className="text-xs text-red-400 mr-1">{error}</span>}
 
-      {loading && (
-        <div className="flex flex-col gap-4 animate-pulse">
-          {[1, 2, 3, 4].map((n) => (
-            <div key={n} className="border border-gray-700 rounded-lg p-4">
-              <div className="h-4 bg-gray-800 rounded w-40 mb-3" />
-              <div className="h-3 bg-gray-800 rounded w-full mb-2" />
-              <div className="h-3 bg-gray-800 rounded w-3/4" />
-            </div>
-          ))}
+          {/* View toggle */}
+          <div className="flex border border-gray-600 rounded-lg overflow-hidden text-xs">
+            {(["day", "week", "month"] as CalendarView[]).map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={`px-2.5 py-1.5 capitalize transition-colors ${
+                  view === v
+                    ? "bg-indigo-600 text-white"
+                    : "text-gray-400 hover:text-white hover:bg-gray-700"
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+
+          <button
+            className="ml-1 px-3 py-1.5 text-xs border border-gray-600 rounded-lg bg-gray-800 hover:bg-gray-700 disabled:opacity-50 transition-colors"
+            onClick={generate}
+            disabled={loading}
+          >
+            {loading ? "Generating…" : plan ? "Regenerate All" : "Generate Plan"}
+          </button>
         </div>
-      )}
 
-      {plan && !loading && (
-        <div className="flex flex-col gap-4">
-          {plan.map((day, di) => (
-            <div key={day.date} className="border border-gray-700 rounded-lg overflow-hidden">
-              {/* Day header */}
-              <div className="px-4 py-3 bg-gray-900 border-b border-gray-700 flex items-center justify-between">
-                <span className="font-medium text-sm">{formatDate(day.date)}</span>
+        {/* ---- Day-of-week header (day + week views) ---- */}
+        {view !== "month" && (
+          <div className="flex shrink-0 border-b border-gray-700/60 bg-gray-900/60">
+            <div className="w-14 shrink-0" />
+            {(view === "week" ? weekDays : [viewDate]).map((d, i) => {
+              const dateStr = toDateStr(d);
+              const isToday = dateStr === today;
+              const hasPlan = !!planByDate[dateStr];
+              const label = view === "week" ? DAY_LABELS[i] : d.toLocaleDateString("en-US", { weekday: "short" });
+              return (
                 <button
-                  className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
-                  onClick={() => {
-                    setRegenDayIdx(regenDayIdx === di ? null : di);
-                    setRegenFeedback("");
-                  }}
+                  key={i}
+                  className="flex-1 flex flex-col items-center py-2 border-l border-gray-700/40 hover:bg-gray-800/40 transition-colors"
+                  onClick={() => goToDay(d)}
+                  title="Switch to day view"
                 >
-                  {regenDayIdx === di ? "Cancel" : "Regenerate day"}
+                  <span
+                    className={`text-[10px] font-semibold uppercase tracking-widest ${
+                      isToday ? "text-indigo-400" : "text-gray-500"
+                    }`}
+                  >
+                    {label}
+                  </span>
+                  <span
+                    className={`mt-0.5 text-base font-bold w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
+                      isToday ? "bg-indigo-600 text-white" : hasPlan ? "text-white" : "text-gray-600"
+                    }`}
+                  >
+                    {d.getDate()}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ---- Content area ---- */}
+        <div className="flex-1 min-h-0 relative">
+
+          {/* Loading overlay */}
+          {loading && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-gray-950/70 gap-3">
+              <div className="w-7 h-7 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+              <span className="text-sm text-gray-400">Generating your plan…</span>
+            </div>
+          )}
+
+          {/* No-plan overlay */}
+          {!plan && !loading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center">
+              <div className="bg-gray-900/95 border border-gray-700 rounded-xl p-8 text-center shadow-xl">
+                <h3 className="text-base font-semibold mb-1.5">No plan yet</h3>
+                <p className="text-sm text-gray-400 mb-4">
+                  Generate a weekly plan from your goals and schedule.
+                </p>
+                <button
+                  className="px-5 py-2.5 bg-indigo-600 rounded-lg text-sm text-white hover:bg-indigo-700 transition-colors"
+                  onClick={generate}
+                >
+                  Generate Plan
                 </button>
               </div>
+            </div>
+          )}
 
-              {/* Objective */}
-              <div className="px-4 py-2 text-xs text-gray-500 border-b border-gray-800 bg-gray-900/40 leading-relaxed">
-                {day.objective}
+          {/* ==== WEEK VIEW ==== */}
+          {view === "week" && (
+            <div ref={gridRef} className="h-full overflow-y-auto overflow-x-hidden">
+              <div className="flex" style={{ height: `${HOURS.length * HOUR_HEIGHT}px` }}>
+                {renderTimeGutter()}
+                {weekDays.map((d) => renderTimeColumn(d, "flex-1"))}
+              </div>
+            </div>
+          )}
+
+          {/* ==== DAY VIEW ==== */}
+          {view === "day" && (
+            <div ref={gridRef} className="h-full overflow-y-auto overflow-x-hidden">
+              <div className="flex" style={{ height: `${HOURS.length * HOUR_HEIGHT}px` }}>
+                {renderTimeGutter()}
+                {renderTimeColumn(viewDate, "flex-1")}
+              </div>
+            </div>
+          )}
+
+          {/* ==== MONTH VIEW ==== */}
+          {view === "month" && (
+            <div className="h-full flex flex-col overflow-hidden">
+              {/* Day-of-week header */}
+              <div className="grid grid-cols-7 shrink-0 border-b border-gray-700/60 bg-gray-900/60">
+                {DAY_LABELS.map((label) => (
+                  <div
+                    key={label}
+                    className="py-2 text-center text-[10px] font-semibold uppercase tracking-widest text-gray-500"
+                  >
+                    {label}
+                  </div>
+                ))}
               </div>
 
-              {/* Regen day form */}
-              {regenDayIdx === di && (
-                <div className="px-4 py-3 border-b border-gray-700 bg-gray-900/70 flex flex-col gap-2">
+              {/* Week rows */}
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                {monthGrid.map((week, wi) => (
+                  <div
+                    key={wi}
+                    className="flex-1 grid grid-cols-7 border-t border-gray-700/30 min-h-0"
+                  >
+                    {week.map((d, di) => {
+                      const dateStr = toDateStr(d);
+                      const isToday = dateStr === today;
+                      const isCurrentMonth = d.getMonth() === viewDate.getMonth();
+                      const entry = planByDate[dateStr];
+                      const allBlocks = entry?.dayPlan.time_blocks ?? [];
+                      const MAX_CHIPS = 3;
+
+                      return (
+                        <div
+                          key={di}
+                          className={`border-r border-gray-700/30 p-1.5 overflow-hidden flex flex-col gap-0.5 ${
+                            di === 0 ? "border-l-0" : ""
+                          } ${isCurrentMonth ? "" : "opacity-40"}`}
+                        >
+                          {/* Day number */}
+                          <button
+                            className="self-start"
+                            onClick={() => goToDay(d)}
+                            title="View day"
+                          >
+                            <span
+                              className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full transition-colors ${
+                                isToday
+                                  ? "bg-indigo-600 text-white"
+                                  : "text-gray-400 hover:text-white hover:bg-gray-700"
+                              }`}
+                            >
+                              {d.getDate()}
+                            </span>
+                          </button>
+
+                          {/* Event chips */}
+                          {allBlocks.slice(0, MAX_CHIPS).map((block) => (
+                            <button
+                              key={block.id}
+                              className="w-full rounded px-1 py-0.5 text-left bg-indigo-600/75 hover:bg-indigo-500 transition-colors overflow-hidden"
+                              onClick={() => {
+                                setSelectedEvent({
+                                  dayPlan: entry!.dayPlan,
+                                  dayIdx: entry!.dayIdx,
+                                  block,
+                                  blockIdx: entry!.dayPlan.time_blocks.indexOf(block),
+                                });
+                                setModalMode("detail");
+                              }}
+                            >
+                              <p className="text-[10px] font-medium text-white truncate leading-tight">
+                                {block.start_time ? formatTime(block.start_time) + " " : ""}
+                                {block.label}
+                              </p>
+                            </button>
+                          ))}
+                          {allBlocks.length > MAX_CHIPS && (
+                            <button
+                              className="text-[10px] text-gray-500 hover:text-gray-300 text-left px-1 transition-colors"
+                              onClick={() => goToDay(d)}
+                            >
+                              +{allBlocks.length - MAX_CHIPS} more
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ---- Event detail modal ---- */}
+      {selectedEvent && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          onClick={(e) => e.target === e.currentTarget && setSelectedEvent(null)}
+        >
+          <div className="absolute inset-0 bg-black/50" onClick={() => setSelectedEvent(null)} />
+          <div className="relative bg-gray-900 border border-gray-700 rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
+
+            {/* Header */}
+            <div className="flex items-start justify-between p-4 border-b border-gray-700/80">
+              <div>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <div className="w-2.5 h-2.5 rounded-sm bg-indigo-500 shrink-0" />
+                  <h3 className="font-semibold text-white leading-tight">{selectedEvent.block.label}</h3>
+                </div>
+                {selectedEvent.block.start_time && selectedEvent.block.end_time && (
+                  <p className="text-sm text-gray-400 ml-4">
+                    {formatTime(selectedEvent.block.start_time)} – {formatTime(selectedEvent.block.end_time)}
+                  </p>
+                )}
+                <p className="text-xs text-gray-500 mt-1 ml-4">
+                  {new Date(selectedEvent.dayPlan.date + "T00:00:00").toLocaleDateString("en-US", {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedEvent(null)}
+                className="p-1 rounded hover:bg-gray-700 text-gray-500 hover:text-white transition-colors text-lg leading-none"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 max-h-[55vh] overflow-y-auto">
+              {modalMode === "detail" && (
+                <>
+                  <div className="mb-4 p-3 rounded-lg bg-gray-800/60 border border-gray-700/50">
+                    <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">
+                      Day Objective
+                    </p>
+                    <p className="text-sm text-gray-300 leading-relaxed">{selectedEvent.dayPlan.objective}</p>
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    {(plan?.[selectedEvent.dayIdx]?.time_blocks[selectedEvent.blockIdx]?.tasks ?? selectedEvent.block.tasks).map((task, ti) => (
+                      <button
+                        key={ti}
+                        className={`text-left border-l-2 pl-3 transition-colors ${task.completed ? "border-emerald-600/60" : "border-indigo-500/60"}`}
+                        onClick={() => toggleTaskComplete(selectedEvent.dayIdx, selectedEvent.blockIdx, ti)}
+                      >
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${task.completed ? "bg-emerald-600 border-emerald-600" : "border-gray-500 hover:border-indigo-400"}`}>
+                            {task.completed && (
+                              <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 8" fill="none">
+                                <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            )}
+                          </div>
+                          <span className={`text-sm font-medium transition-colors ${task.completed ? "text-gray-500 line-through" : "text-white"}`}>{task.title}</span>
+                          <span className="text-[10px] text-gray-500 bg-gray-800 px-1.5 py-0.5 rounded tabular-nums">
+                            {task.estimated_minutes} min
+                          </span>
+                        </div>
+                        <p className={`text-xs mt-0.5 leading-relaxed transition-colors ${task.completed ? "text-gray-600 line-through" : "text-gray-400"}`}>{task.description}</p>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {modalMode === "regen" && (
+                <div className="flex flex-col gap-3">
+                  <p className="text-sm text-gray-400">
+                    Regenerate all blocks for{" "}
+                    <span className="text-white font-medium">
+                      {new Date(selectedEvent.dayPlan.date + "T00:00:00").toLocaleDateString("en-US", {
+                        weekday: "long",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </span>
+                    .
+                  </p>
                   <textarea
-                    className="p-2 border border-gray-600 rounded bg-gray-900 text-white text-sm w-full min-h-[60px] resize-y focus:outline-none focus:border-indigo-500"
+                    className="p-2.5 border border-gray-600 rounded-lg bg-gray-800 text-white text-sm w-full min-h-[80px] resize-y focus:outline-none focus:border-indigo-500 transition-colors"
                     placeholder="Optional feedback (e.g. make it harder, focus on barre chords, shorter session…)"
                     value={regenFeedback}
                     onChange={(e) => setRegenFeedback(e.target.value)}
+                    autoFocus
                   />
                   <div className="flex gap-2">
                     <button
-                      className="px-3 py-1.5 bg-indigo-600 rounded text-sm text-white hover:bg-indigo-700 disabled:opacity-60"
-                      onClick={() => regenerateDay(di)}
+                      className="px-4 py-2 bg-indigo-600 rounded-lg text-sm text-white hover:bg-indigo-700 disabled:opacity-60 transition-colors"
+                      onClick={regenerateDay}
                       disabled={regenLoading}
                     >
-                      {regenLoading ? "Regenerating..." : "Submit"}
+                      {regenLoading ? "Regenerating…" : "Regenerate"}
                     </button>
                     <button
-                      className="px-3 py-1.5 text-sm text-gray-400 hover:text-white"
-                      onClick={() => setRegenDayIdx(null)}
+                      className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                      onClick={() => setModalMode("detail")}
                     >
-                      Cancel
+                      Back
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* Time blocks */}
-              <div className="divide-y divide-gray-800">
-                {day.time_blocks.map((block, bi) => (
-                  <div key={block.id} className="px-4 py-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-indigo-400">{block.label}</span>
-                        {block.start_time && block.end_time && (
-                          <span className="text-xs text-gray-500 tabular-nums">
-                            {block.start_time} – {block.end_time}
-                          </span>
-                        )}
-                      </div>
-                      <button
-                        className="text-xs text-gray-500 hover:text-white transition-colors"
-                        onClick={() =>
-                          reschedule?.dayIdx === di && reschedule?.blockIdx === bi
-                            ? setReschedule(null)
-                            : openReschedule(di, bi)
-                        }
+              {modalMode === "reschedule" && (
+                <div className="flex flex-col gap-3">
+                  <p className="text-sm text-gray-400">Move this block to a different date or time. The duration stays the same.</p>
+                  <div className="flex flex-wrap gap-3">
+                    <label className="flex flex-col gap-1 text-xs text-gray-400">
+                      Date
+                      <input
+                        type="date"
+                        className="p-2 border border-gray-600 rounded-lg bg-gray-800 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors"
+                        value={rsDate}
+                        onChange={(e) => setRsDate(e.target.value)}
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs text-gray-400">
+                      Start time
+                      <select
+                        className="p-2 border border-gray-600 rounded-lg bg-gray-800 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                        value={rsStart}
+                        onChange={(e) => setRsStart(e.target.value)}
                       >
-                        {reschedule?.dayIdx === di && reschedule?.blockIdx === bi ? "Cancel" : "Reschedule"}
-                      </button>
-                    </div>
-
-                    {/* Reschedule form */}
-                    {reschedule?.dayIdx === di && reschedule?.blockIdx === bi && (
-                      <div className="mb-3 p-3 border border-gray-700 rounded-lg bg-gray-900/70 flex flex-col gap-3">
-                        <div className="flex gap-2 flex-wrap">
-                          <label className="flex flex-col gap-1 text-xs text-gray-400">
-                            Date
-                            <input
-                              type="date"
-                              className="p-1.5 border border-gray-600 rounded bg-gray-900 text-white text-sm focus:outline-none focus:border-indigo-500"
-                              value={rsDate}
-                              onChange={(e) => setRsDate(e.target.value)}
-                            />
-                          </label>
-                          <label className="flex flex-col gap-1 text-xs text-gray-400">
-                            Start time
-                            <input
-                              type="time"
-                              className="p-1.5 border border-gray-600 rounded bg-gray-900 text-white text-sm focus:outline-none focus:border-indigo-500"
-                              value={rsStart}
-                              onChange={(e) => setRsStart(e.target.value)}
-                            />
-                          </label>
-                          <label className="flex flex-col gap-1 text-xs text-gray-400">
-                            End time
-                            <input
-                              type="time"
-                              className="p-1.5 border border-gray-600 rounded bg-gray-900 text-white text-sm focus:outline-none focus:border-indigo-500"
-                              value={rsEnd}
-                              onChange={(e) => setRsEnd(e.target.value)}
-                            />
-                          </label>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            className="px-3 py-1.5 bg-indigo-600 rounded text-xs text-white hover:bg-indigo-700"
-                            onClick={applyReschedule}
-                          >
-                            Save
-                          </button>
-                          <button
-                            className="px-3 py-1.5 text-xs text-gray-400 hover:text-white"
-                            onClick={() => setReschedule(null)}
-                          >
-                            Cancel
-                          </button>
-                        </div>
+                        {Array.from({ length: 48 }, (_, i) => {
+                          const h = Math.floor(i / 2);
+                          const m = i % 2 === 0 ? "00" : "30";
+                          const value = `${String(h).padStart(2, "0")}:${m}`;
+                          const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+                          const ampm = h < 12 ? "AM" : "PM";
+                          return <option key={value} value={value}>{`${hour12}:${m} ${ampm}`}</option>;
+                        })}
+                      </select>
+                    </label>
+                    {selectedEvent?.block.start_time && selectedEvent?.block.end_time && (
+                      <div className="flex flex-col gap-1 text-xs text-gray-400">
+                        Duration
+                        <span className="p-2 border border-gray-700 rounded-lg bg-gray-800/50 text-gray-500 text-sm">
+                          {timeToMinutes(selectedEvent.block.end_time) - timeToMinutes(selectedEvent.block.start_time)} min
+                        </span>
                       </div>
                     )}
-
-                    {/* Tasks */}
-                    <div className="flex flex-col gap-2 ml-1">
-                      {block.tasks.map((task, ti) => (
-                        <div key={ti} className="border-l-2 border-gray-700 pl-3 py-0.5">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">{task.title}</span>
-                            <span className="text-xs text-gray-500 bg-gray-800 px-1.5 py-0.5 rounded tabular-nums">
-                              {task.estimated_minutes} min
-                            </span>
-                          </div>
-                          <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{task.description}</p>
-                        </div>
-                      ))}
-                    </div>
                   </div>
-                ))}
-              </div>
+                  <div className="flex gap-2">
+                    <button
+                      className="px-4 py-2 bg-indigo-600 rounded-lg text-sm text-white hover:bg-indigo-700 transition-colors"
+                      onClick={applyReschedule}
+                    >
+                      Save
+                    </button>
+                    <button
+                      className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                      onClick={() => setModalMode("detail")}
+                    >
+                      Back
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          ))}
+
+            {/* Footer */}
+            {modalMode === "detail" && (
+              <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-700/80 bg-gray-900/50">
+                <button
+                  className="px-3 py-1.5 text-xs border border-gray-700 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-white transition-colors"
+                  onClick={() => setModalMode("regen")}
+                >
+                  Regenerate day
+                </button>
+                <button
+                  className="px-3 py-1.5 text-xs border border-gray-700 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-white transition-colors"
+                  onClick={openReschedule}
+                >
+                  Reschedule block
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

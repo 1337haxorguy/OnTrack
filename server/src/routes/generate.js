@@ -153,6 +153,177 @@ const OUTPUT_SCHEMA = {
   },
 };
 
+// ---- Availability helpers ----
+
+function timeToMins(t) {
+  const [h, m] = (t || "00:00").split(":").map(Number);
+  return h * 60 + (m || 0);
+}
+
+function minsToTime(m) {
+  if (m >= 24 * 60) return "24:00";
+  const h = Math.floor(m / 60);
+  const min = m % 60;
+  return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+}
+
+// Subtract a blocked interval [blockStart, blockEnd) from a list of free windows.
+function subtractInterval(windows, blockStart, blockEnd) {
+  const result = [];
+  for (const w of windows) {
+    if (blockEnd <= w.start || blockStart >= w.end) {
+      result.push(w);
+    } else {
+      if (blockStart > w.start) result.push({ start: w.start, end: blockStart });
+      if (blockEnd < w.end) result.push({ start: blockEnd, end: w.end });
+    }
+  }
+  return result;
+}
+
+// Returns available windows (array of {start, end} in minutes) for a specific date.
+function computeAvailableWindows(dateStr, free_slots, recurring_blocks, specific_blocks) {
+  const dayOfWeek = new Date(dateStr + "T00:00:00")
+    .toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
+
+  // All-day specific block → nothing available
+  const allDayBlock = (specific_blocks || []).find(sb => sb.date === dateStr && sb.all_day);
+  if (allDayBlock) return [];
+
+  const rawFree = (free_slots || {})[dayOfWeek] || [];
+  let windows = rawFree.length > 0
+    ? rawFree.map(s => ({ start: timeToMins(s.start), end: timeToMins(s.end) }))
+    : [{ start: 0, end: 24 * 60 }]; // no defined slots → treat as open all day
+
+  // Subtract recurring blocks for this day-of-week
+  for (const rb of (recurring_blocks || [])) {
+    if ((rb.days || []).includes(dayOfWeek)) {
+      windows = subtractInterval(windows, timeToMins(rb.start_time), timeToMins(rb.end_time));
+    }
+  }
+
+  // Subtract specific (non-all-day) blocks for this exact date
+  for (const sb of (specific_blocks || [])) {
+    if (sb.date === dateStr && !sb.all_day) {
+      windows = subtractInterval(windows, timeToMins(sb.start_time), timeToMins(sb.end_time));
+    }
+  }
+
+  return windows.filter(w => w.end - w.start > 0);
+}
+
+// Drop past days and shift/drop today's blocks that have already passed.
+function enforceAfterNow(result, timezone) {
+  const tz = timezone || "UTC";
+  const now = new Date();
+
+  // Today's date string in the user's timezone (YYYY-MM-DD via en-CA locale)
+  const todayStr = new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(now);
+
+  // Current time in minutes in the user's timezone
+  const timeParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(now);
+  const nowHour = parseInt(timeParts.find(p => p.type === "hour").value);
+  const nowMin  = parseInt(timeParts.find(p => p.type === "minute").value);
+  const nowMins = nowHour * 60 + nowMin;
+  // Round up to the next 15-minute mark for a clean block start
+  const startFloor = Math.ceil(nowMins / 15) * 15;
+
+  result.weekly_tasks = (result.weekly_tasks || [])
+    // Drop days that have already passed
+    .filter(day => day.date >= todayStr)
+    .map(day => {
+      // Future days need no adjustment
+      if (day.date !== todayStr) return day;
+
+      const adjustedBlocks = (day.time_blocks || []).filter(block => {
+        // Untimed blocks have no start/end — leave them alone
+        if (!block.start_time || !block.end_time) return true;
+
+        const blockEnd   = timeToMins(block.end_time);
+        const blockStart = timeToMins(block.start_time);
+        const duration   = blockEnd - blockStart;
+
+        // Block has already ended — drop it
+        if (blockEnd <= nowMins) return false;
+
+        // Block started in the past but hasn't ended — shift it forward
+        if (blockStart < startFloor) {
+          const newEnd = startFloor + duration;
+          // Would push past midnight — drop it
+          if (newEnd > 24 * 60) return false;
+          block.start_time = minsToTime(startFloor);
+          block.end_time   = minsToTime(newEnd);
+        }
+
+        return true;
+      });
+
+      return { ...day, time_blocks: adjustedBlocks };
+    })
+    // Drop days that have no time blocks left after adjustment
+    .filter(day => (day.time_blocks || []).length > 0);
+
+  return result;
+}
+
+// Move any time block that falls outside available windows into a valid window.
+// Called after reconcileBlockTimes so durations are already correct.
+function enforceAvailableWindows(result, availability) {
+  const { free_slots = {}, recurring_blocks = [], specific_blocks = [] } = availability || {};
+
+  for (const day of result.weekly_tasks || []) {
+    const windows = computeAvailableWindows(day.date, free_slots, recurring_blocks, specific_blocks);
+    if (windows.length === 0) continue; // no windows → leave as-is (edge case)
+
+    for (const block of day.time_blocks || []) {
+      if (!block.start_time || !block.end_time) continue;
+
+      const blockStart = timeToMins(block.start_time);
+      const blockEnd = timeToMins(block.end_time);
+      const duration = blockEnd - blockStart;
+
+      // Already fits within an available window — nothing to do
+      if (windows.some(w => blockStart >= w.start && blockEnd <= w.end)) continue;
+
+      // Find the first window wide enough to hold the block
+      const fitWindow = windows.find(w => (w.end - w.start) >= duration);
+      if (fitWindow) {
+        block.start_time = minsToTime(fitWindow.start);
+        block.end_time = minsToTime(fitWindow.start + duration);
+      } else {
+        // No window is wide enough — fit into the largest available window, clipping end
+        const largest = windows.reduce((a, b) => (b.end - b.start > a.end - a.start ? b : a));
+        block.start_time = minsToTime(largest.start);
+        block.end_time = minsToTime(Math.min(largest.start + duration, largest.end));
+      }
+    }
+  }
+  return result;
+}
+
+// Recalculates each time block's end_time to exactly match start_time + sum(task estimated_minutes).
+// The AI often leaves gaps between task durations and block duration — this fixes that.
+function reconcileBlockTimes(result) {
+  for (const day of result.weekly_tasks || []) {
+    for (const block of day.time_blocks || []) {
+      if (!block.start_time) continue;
+      const totalMinutes = (block.tasks || []).reduce((sum, t) => sum + (t.estimated_minutes || 0), 0);
+      if (totalMinutes === 0) continue;
+      const [h, m] = block.start_time.split(":").map(Number);
+      const endTotal = h * 60 + m + totalMinutes;
+      const endH = Math.floor(endTotal / 60) % 24;
+      const endM = endTotal % 60;
+      block.end_time = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+    }
+  }
+  return result;
+}
+
 // Build prompt from new structured format (App.tsx)
 function buildNewFormatMessage(goals, availability, preferences) {
   const { timezone = "UTC", free_slots = {}, recurring_blocks = [], specific_blocks = [] } = availability;
@@ -175,15 +346,20 @@ function buildNewFormatMessage(goals, availability, preferences) {
     endDate.setDate(endDate.getDate() + 7);
   }
 
-  // days_per_week: union of selected_days across goals, fallback to free_slots
+  // days_per_week: union of selected_days across goals, fallback to free_slots,
+  // fallback to all 7 days if neither is specified
+  const ALL_DAYS = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
   const allSelectedDays = new Set();
   for (const goal of goals) {
     (goal.selected_days || []).forEach(d => allSelectedDays.add(d));
   }
+  const daysWithSlots = Object.entries(free_slots).filter(([, slots]) => Array.isArray(slots) && slots.length > 0);
   const activeDays = allSelectedDays.size > 0
     ? Array.from(allSelectedDays).map(d => [d, free_slots[d] || []])
-    : Object.entries(free_slots).filter(([, slots]) => Array.isArray(slots) && slots.length > 0);
-  const days_per_week = Math.max(1, activeDays.length);
+    : daysWithSlots.length > 0
+    ? daysWithSlots
+    : ALL_DAYS.map(d => [d, []]);  // no schedule set → assume all 7 days open
+  const days_per_week = activeDays.length;
 
   // Total hours: sum per-goal commitments
   const totalHours = goals.reduce((s, g) => s + (g.hours_per_week || 2), 0);
@@ -218,29 +394,26 @@ function buildNewFormatMessage(goals, availability, preferences) {
     return lines.join("\n");
   }).join("\n\n");
 
-  const freeTimeDesc = activeDays.length > 0
-    ? activeDays.map(([day, slots]) => {
-        const slotStr = Array.isArray(slots) && slots.length > 0
-          ? slots.map(s => `${s.start}–${s.end}`).join(", ")
-          : "open";
-        return `  ${day}: ${slotStr}`;
-      }).join("\n")
-    : "  No specific free slots provided — distribute sessions on reasonable days";
+  // Compute exact available windows per scheduled date
+  const scheduledDates = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + i);
+    return d.toISOString().split("T")[0];
+  });
 
-  const recurringDesc = recurring_blocks.length > 0
-    ? recurring_blocks.map(b =>
-        `  - ${b.label}: ${b.days.join(", ")} ${b.start_time}–${b.end_time} (BLOCKED — do NOT schedule here)`
-      ).join("\n")
-    : "  None";
+  const windowsPerDate = scheduledDates.map(dateStr => {
+    const windows = computeAvailableWindows(dateStr, free_slots, recurring_blocks, specific_blocks);
+    const dayName = new Date(dateStr + "T00:00:00")
+      .toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
+    const isActive = activeDays.some(([d]) => d === dayName);
+    if (!isActive) return null; // not a scheduled day for any goal
+    if (windows.length === 0) return `  ${dateStr} (${dayName}): UNAVAILABLE — do not schedule`;
+    const windowStr = windows.map(w => `${minsToTime(w.start)}–${minsToTime(w.end)}`).join(", ");
+    return `  ${dateStr} (${dayName}): ${windowStr}`;
+  }).filter(Boolean).join("\n");
 
-  const specificDesc = specific_blocks.length > 0
-    ? specific_blocks.map(b =>
-        `  - ${b.date}: ${b.all_day ? "All day" : `${b.start_time}–${b.end_time}`}${b.label ? ` (${b.label})` : ""} (BLOCKED)`
-      ).join("\n")
-    : "  None";
-
-  const minMinutes = Math.max(60, (totalHours - 1) * 60);
-  const maxMinutes = (totalHours + 1) * 60;
+  const hardMaxMinutes = totalHours * 60;
+  const targetPerDay = Math.round(hardMaxMinutes / days_per_week);
   const maxBlocksPerDay = sessions_per_day >= 2 ? 2 : 1;
 
   return `TASK:
@@ -249,23 +422,17 @@ Generate the routine for EXACTLY one week starting from ${startDate.toISOString(
 GOALS:
 ${goalDescs}
 
-AVAILABLE TIME (when user is free to work on their goals):
-${freeTimeDesc}
-
-RECURRING COMMITMENTS (user is NOT available during these times):
-${recurringDesc}
-
-SPECIFIC BLOCKED DATES/TIMES:
-${specificDesc}
+SCHEDULING WINDOWS (these are the ONLY times the user is available — do NOT schedule outside these windows):
+${windowsPerDate}
 
 TIMEZONE: ${timezone}
 
 CONSTRAINTS:
-- Generate exactly ${days_per_week} day entries in weekly_tasks
-- Prefer days listed in each goal's "Preferred days"; if none specified, use days with free slots
-- Schedule sessions within the user's free time windows; do NOT schedule during recurring commitments or blocked dates
+- Generate exactly ${days_per_week} day entries in weekly_tasks, one per available date listed above
+- Skip any date marked UNAVAILABLE
+- CRITICAL: Every time block MUST start and end within one of the listed windows for that date — no exceptions
 - Honor per-goal daily limits if specified
-- Total estimated_minutes across ALL tasks MUST be between ${minMinutes} and ${maxMinutes}
+- CRITICAL TIME CONSTRAINT: The SUM of every estimated_minutes value across ALL tasks in ALL days MUST NOT exceed ${hardMaxMinutes} minutes total. Do NOT go over ${hardMaxMinutes} minutes. Aim for approximately ${targetPerDay} minutes per day across ${days_per_week} days.
 - Each day should have 1–${maxBlocksPerDay} time block(s)
 - Every time block MUST include non-null start_time and end_time in HH:MM 24-hour format
 - Strictly respect each goal's restrictions (do not assign tasks that violate them)
@@ -345,7 +512,14 @@ ${timeBlockRule}
       response_format: OUTPUT_SCHEMA,
     });
 
-    const result = JSON.parse(completion.choices[0].message.content);
+    const tz = availability?.timezone || "UTC";
+    const result = enforceAvailableWindows(
+      enforceAfterNow(
+        reconcileBlockTimes(JSON.parse(completion.choices[0].message.content)),
+        tz
+      ),
+      availability
+    );
     res.json(result);
   } catch (err) {
     console.error("OpenAI API error:", err.message);
@@ -361,12 +535,14 @@ router.post("/regenerate-day", async (req, res) => {
   }
 
   const dayOfWeek = new Date(date + "T00:00:00").toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
-  const freeSlots = (availability.free_slots || {})[dayOfWeek] || [];
+  const { free_slots = {}, recurring_blocks = [], specific_blocks = [] } = availability;
+
+  const availableWindows = computeAvailableWindows(date, free_slots, recurring_blocks, specific_blocks);
+  const windowsDesc = availableWindows.length > 0
+    ? availableWindows.map(w => `${minsToTime(w.start)}–${minsToTime(w.end)}`).join(", ")
+    : "none — day is fully blocked";
 
   const goalDescs = goals.map(g => `- "${g.title}" (${g.skill_level})`).join("\n");
-  const slotsDesc = freeSlots.length > 0
-    ? freeSlots.map(s => `${s.start}–${s.end}`).join(", ")
-    : "flexible timing";
 
   const userMessage =
 `TASK:
@@ -375,15 +551,15 @@ Regenerate the schedule for ${date} (${dayOfWeek}).
 GOALS:
 ${goalDescs}
 
-AVAILABLE TIME ON THIS DAY:
-${slotsDesc}
+AVAILABLE WINDOWS ON THIS DAY (schedule ONLY within these times):
+${windowsDesc}
 ${feedback ? `\nUSER FEEDBACK:\n${feedback}` : ""}
 ${current_day_plan ? `\nCURRENT SCHEDULE TO REPLACE:\n${JSON.stringify(current_day_plan, null, 2)}` : ""}
 
 CONSTRAINTS:
 - Generate EXACTLY 1 entry in weekly_tasks for date ${date}
 - Include 1–2 time blocks
-- Schedule tasks within the available time window
+- CRITICAL: Every time block MUST start and end within one of the available windows listed above
 - Every time block MUST have start_time and end_time in HH:MM 24-hour format
 - Output JSON only and strictly conform to the provided output schema.`;
 
@@ -397,12 +573,140 @@ CONSTRAINTS:
       response_format: OUTPUT_SCHEMA,
     });
 
-    const result = JSON.parse(completion.choices[0].message.content);
+    const tz = availability?.timezone || "UTC";
+    const result = enforceAvailableWindows(
+      enforceAfterNow(
+        reconcileBlockTimes(JSON.parse(completion.choices[0].message.content)),
+        tz
+      ),
+      availability
+    );
     const dayPlan = result.weekly_tasks?.[0] ?? null;
     res.json(dayPlan);
   } catch (err) {
     console.error("OpenAI API error:", err.message);
     res.status(500).json({ error: "Failed to regenerate day." });
+  }
+});
+
+const FOLLOWUP_SYSTEM_PROMPT =
+`You are an AI that specializes in building personalized routines for users to follow for any hobby or special interest.
+
+Your task is to generate a short list of follow-up questions (up to 5 maximum) that are important for building a strong, personalized routine for the user. Questions should be highly specific to the goal and have a notable impact on how the routine would be constructed.
+
+Do NOT ask about timeline, daily/weekly frequency, or total time to commit — those are handled separately.
+
+For each question, also decide whether it is mandatory. A question is mandatory if answering it would significantly change the structure, content, or safety of the routine — for example, knowing about physical limitations, prior injuries, access to equipment, or a specific performance deadline. Optional questions add useful colour but the plan would still be solid without them.
+
+Return a JSON object with a "questions" array. Each item has "question" (string) and "mandatory" (boolean).
+If no additional questions are needed, return an empty array for "questions".`;
+
+router.post("/followup-questions", async (req, res) => {
+  const { title, skill_level, restrictions, requests, additional_context } = req.body;
+
+  if (!title) {
+    return res.status(400).json({ error: "title is required." });
+  }
+
+  const userMessage =
+`Generate follow-up questions for this goal:
+
+Hobby/Goal Title: ${title}
+Skill Level: ${skill_level || "not specified"}
+Restrictions: ${restrictions?.length > 0 ? restrictions.join(", ") : "none"}
+Requests: ${requests?.length > 0 ? requests.join(", ") : "none"}
+Additional Context: ${additional_context || "none"}
+
+Return a JSON array of up to 5 question strings. Return [] if no questions are needed.`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: FOLLOWUP_SYSTEM_PROMPT },
+        { role: "user", content: userMessage },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "followup_questions",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              questions: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    question: { type: "string" },
+                    mandatory: { type: "boolean" },
+                  },
+                  required: ["question", "mandatory"],
+                  additionalProperties: false,
+                },
+                description: "List of follow-up questions (up to 5)",
+              },
+            },
+            required: ["questions"],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+
+    const result = JSON.parse(completion.choices[0].message.content);
+    res.json({ questions: result.questions || [] });
+  } catch (err) {
+    console.error("OpenAI API error:", err.message);
+    res.status(500).json({ error: "Failed to generate questions." });
+  }
+});
+
+const VALIDATE_GOAL_SYSTEM_PROMPT =
+`You are validating whether a user-submitted goal is real and meaningful enough to build a routine around.
+
+A goal is INVALID if it is: random gibberish, a nonsensical string, clearly not a real goal, offensive, or so vague it cannot be planned for (e.g. "asdfg", "lol idk", "xkcd 123", "???").
+A goal is VALID if it describes any real hobby, skill, sport, habit, or personal development goal — even an unusual one.
+
+Return a JSON object with:
+- "valid": true or false
+- "reason": a short, friendly explanation of why it's invalid (empty string if valid)`;
+
+router.post("/validate-goal", async (req, res) => {
+  const { title } = req.body;
+  if (!title) return res.status(400).json({ error: "title is required." });
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: VALIDATE_GOAL_SYSTEM_PROMPT },
+        { role: "user", content: `Goal title: "${title}"` },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "goal_validation",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              valid: { type: "boolean" },
+              reason: { type: "string" },
+            },
+            required: ["valid", "reason"],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+
+    const result = JSON.parse(completion.choices[0].message.content);
+    res.json(result);
+  } catch (err) {
+    console.error("OpenAI API error:", err.message);
+    res.status(500).json({ error: "Failed to validate goal." });
   }
 });
 

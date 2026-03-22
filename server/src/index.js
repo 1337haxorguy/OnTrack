@@ -7,6 +7,7 @@ const jwtCheck = require("./middleware/auth");
 const generateRoute = require("./routes/generate");
 const playgroundRoute = require("./routes/playground");
 const syncUserRoute = require("./routes/syncUser");
+const userDataRoute = require("./routes/userData");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,6 +21,7 @@ app.use(express.json());
 
 app.use("/api/generate", generateRoute);
 app.use("/api/sync-user", jwtCheck, syncUserRoute);
+app.use("/api/user-data", jwtCheck, userDataRoute);
 app.use("/api/playground", playgroundRoute);
 
 app.listen(PORT, () => {
