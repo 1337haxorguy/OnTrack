@@ -7,8 +7,8 @@ router.get("/", async (req, res) => {
   try {
     const sub = req.auth.payload.sub;
     const user = await User.findOne({ auth0Sub: sub });
-    if (!user) return res.json({ goals: [], schedule: null, plan: null });
-    res.json({ goals: user.goals ?? [], schedule: user.schedule ?? null, plan: user.plan ?? null });
+    if (!user) return res.json({ goals: [], schedule: null, plan: null, avatar: null });
+    res.json({ goals: user.goals ?? [], schedule: user.schedule ?? null, plan: user.plan ?? null, avatar: user.avatar ?? null });
   } catch (err) {
     console.error("user-data GET error:", err);
     res.status(500).json({ error: "Failed to load user data" });
@@ -19,12 +19,13 @@ router.get("/", async (req, res) => {
 router.put("/", async (req, res) => {
   try {
     const sub = req.auth.payload.sub;
-    const { goals, schedule, plan } = req.body;
+    const { goals, schedule, plan, avatar } = req.body;
 
     const patch = {};
     if (goals    !== undefined) patch.goals    = goals;
     if (schedule !== undefined) patch.schedule = schedule;
     if (plan     !== undefined) patch.plan     = plan;
+    if (avatar   !== undefined) patch.avatar   = avatar;
 
     await User.findOneAndUpdate(
       { auth0Sub: sub },

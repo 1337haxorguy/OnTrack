@@ -4,7 +4,7 @@ import { useApp, DAYS } from "../context/AppContext";
 import { useAuth0 } from "@auth0/auth0-react";
 import type { Goal, FollowupQuestion, DayPlan } from "../context/AppContext";
 
-const API_BASE = "https://ontrack-sq87.onrender.com";
+const API_BASE = import.meta.env.VITE_API_BASE;
 
 const fmt = (d: Date) => {
   const y = d.getFullYear();
@@ -344,6 +344,40 @@ function AdditionalContextSection({
 }
 
 // ============================================================
+// Draft helpers
+// ============================================================
+
+const DRAFTS_KEY = "ontrack_goal_drafts";
+
+interface GoalDraft {
+  id: string;
+  form: Omit<Goal, "id">;
+  step: 1 | 2 | 3;
+  savedAt: string; // ISO string
+}
+
+function loadDrafts(): GoalDraft[] {
+  try {
+    const raw = localStorage.getItem(DRAFTS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveDrafts(drafts: GoalDraft[]) {
+  localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts));
+}
+
+function timeAgo(iso: string): string {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diff < 60) return "just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+// ============================================================
 // Main component
 // ============================================================
 
@@ -354,8 +388,10 @@ export default function CreateGoal() {
   const { id } = useParams();
   const isEditing = !!id;
 
-  const [form, setForm]                     = useState<Omit<Goal, "id">>(emptyGoal());
-  const [step, setStep]                     = useState<1 | 2 | 3>(1);
+  const [drafts, setDrafts]               = useState<GoalDraft[]>(() => loadDrafts());
+  const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
+  const [form, setForm]                   = useState<Omit<Goal, "id">>(emptyGoal());
+  const [step, setStep]                   = useState<1 | 2 | 3>(1);
   const [newRestriction, setNewRestriction] = useState("");
   const [newRequest, setNewRequest]         = useState("");
   const [qLoading, setQLoading]             = useState(false);
@@ -366,6 +402,57 @@ export default function CreateGoal() {
   const [generating, setGenerating]         = useState(false);
   const [generateError, setGenerateError]   = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  useEffect(() => {
+    document.title = isEditing && form.title.trim()
+      ? `${form.title.trim()} — OnTrack`
+      : "New Goal — OnTrack";
+  }, [isEditing, form.title]);
+
+  // Auto-save active draft on every form/step change
+  useEffect(() => {
+    if (isEditing || !activeDraftId) return;
+    setDrafts(prev => {
+      const updated = prev.map(d =>
+        d.id === activeDraftId ? { ...d, form, step, savedAt: new Date().toISOString() } : d
+      );
+      saveDrafts(updated);
+      return updated;
+    });
+  }, [form, step]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const startNewDraft = () => {
+    const draft: GoalDraft = {
+      id: crypto.randomUUID(),
+      form: emptyGoal(),
+      step: 1,
+      savedAt: new Date().toISOString(),
+    };
+    const updated = [...drafts, draft];
+    saveDrafts(updated);
+    setDrafts(updated);
+    setForm(draft.form);
+    setStep(1);
+    setActiveDraftId(draft.id);
+  };
+
+  const resumeDraft = (draft: GoalDraft) => {
+    setForm(draft.form);
+    setStep(draft.step);
+    setActiveDraftId(draft.id);
+  };
+
+  const deleteDraftById = (draftId: string) => {
+    const updated = drafts.filter(d => d.id !== draftId);
+    saveDrafts(updated);
+    setDrafts(updated);
+    if (activeDraftId === draftId) setActiveDraftId(null);
+  };
+
+  const clearActiveDraft = () => {
+    if (!activeDraftId) return;
+    deleteDraftById(activeDraftId);
+  };
 
   useEffect(() => {
     if (id) {
@@ -501,6 +588,7 @@ export default function CreateGoal() {
     const newGoal = { ...cleanedForm, id: crypto.randomUUID() };
     const updatedGoals = [...goals, newGoal];
     setGoals(updatedGoals);
+    clearActiveDraft();
     await generatePlan(updatedGoals);
   };
 
@@ -650,6 +738,74 @@ export default function CreateGoal() {
   }
 
   // ============================================================
+  // Draft picker — shown when no draft is active
+  // ============================================================
+
+  if (!isEditing && !activeDraftId) {
+    return (
+      <div className="max-w-2xl pb-20">
+        <div className="flex items-center gap-2 mb-8 text-sm">
+          <button onClick={() => navigate("/")} className="text-gray-500 hover:text-white transition-colors">
+            ← Goals
+          </button>
+          <span className="text-gray-700">/</span>
+          <span className="text-gray-300 font-medium">New goal</span>
+        </div>
+
+        {drafts.length > 0 && (
+          <div className="flex flex-col gap-3 mb-6">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-widest">Saved drafts</p>
+            {drafts.map(draft => (
+              <div
+                key={draft.id}
+                className="flex items-center gap-3 rounded-xl border border-gray-800 bg-gray-900/40 px-4 py-3 hover:border-gray-700 transition-colors group"
+              >
+                <button
+                  className="flex-1 flex flex-col items-start text-left min-w-0"
+                  onClick={() => resumeDraft(draft)}
+                >
+                  <span className="text-sm font-medium text-white truncate w-full">
+                    {draft.form.title.trim() || "Untitled goal"}
+                  </span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-gray-600">
+                      Step {draft.step} of 3
+                    </span>
+                    <span className="text-gray-700">·</span>
+                    <span className="text-xs text-gray-600">{timeAgo(draft.savedAt)}</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => resumeDraft(draft)}
+                  className="shrink-0 text-xs px-3 py-1.5 rounded-lg border border-gray-700 text-gray-400 hover:border-indigo-600/60 hover:text-indigo-400 transition-colors"
+                >
+                  Resume
+                </button>
+                <button
+                  onClick={() => deleteDraftById(draft.id)}
+                  className="shrink-0 text-gray-600 hover:text-red-400 transition-colors p-1"
+                  title="Delete draft"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+                    <path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <button
+          onClick={startNewDraft}
+          className="w-full py-3 rounded-xl border border-dashed border-gray-700 text-gray-400 hover:border-indigo-600/50 hover:text-indigo-400 text-sm font-medium transition-colors"
+        >
+          + Start a new goal
+        </button>
+      </div>
+    );
+  }
+
+  // ============================================================
   // New goal — 3-step wizard
   // ============================================================
 
@@ -659,7 +815,7 @@ export default function CreateGoal() {
       {/* Header */}
       <div className="flex items-center gap-2 mb-6 text-sm">
         <button
-          onClick={() => step > 1 ? setStep((s) => (s - 1) as 1 | 2 | 3) : navigate("/")}
+          onClick={() => step > 1 ? setStep((s) => (s - 1) as 1 | 2 | 3) : setActiveDraftId(null)}
           className="text-gray-500 hover:text-white transition-colors"
         >
           ←

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useApp, DAYS } from "../context/AppContext";
 import type { Day } from "../context/AppContext";
 
@@ -38,6 +38,13 @@ export default function Profile() {
   const { schedule, setSchedule } = useApp();
   const { timezone, free_slots, recurring_blocks, specific_blocks } = schedule;
 
+  useEffect(() => { document.title = "Schedule — OnTrack"; }, []);
+
+  const [freeForm, setFreeForm] = useState({
+    days: [] as Day[],
+    start: "09:00",
+    end: "17:00",
+  });
   const [rbForm, setRbForm] = useState({
     label: "",
     days: [] as Day[],
@@ -55,19 +62,24 @@ export default function Profile() {
   const update = (patch: Partial<typeof schedule>) =>
     setSchedule((prev) => ({ ...prev, ...patch }));
 
-  const addSlot = (day: string) =>
-    update({ free_slots: { ...free_slots, [day]: [...(free_slots[day] || []), { start: "09:00", end: "17:00" }] } });
-
   const removeSlot = (day: string, i: number) =>
     update({ free_slots: { ...free_slots, [day]: free_slots[day].filter((_, idx) => idx !== i) } });
 
-  const updateSlot = (day: string, i: number, field: "start" | "end", value: string) =>
-    update({
-      free_slots: {
-        ...free_slots,
-        [day]: free_slots[day].map((s, idx) => (idx === i ? { ...s, [field]: value } : s)),
-      },
-    });
+  const toggleFreeDay = (day: Day) =>
+    setFreeForm((prev) => ({
+      ...prev,
+      days: prev.days.includes(day) ? prev.days.filter((d) => d !== day) : [...prev.days, day],
+    }));
+
+  const addFreeSlot = () => {
+    if (freeForm.days.length === 0) return;
+    const updated = { ...free_slots };
+    for (const day of freeForm.days) {
+      updated[day] = [...(updated[day] || []), { start: freeForm.start, end: freeForm.end }];
+    }
+    update({ free_slots: updated });
+    setFreeForm((prev) => ({ ...prev, days: [] }));
+  };
 
   const toggleRbDay = (day: Day) =>
     setRbForm((prev) => ({
@@ -124,69 +136,71 @@ export default function Profile() {
         <section className={cardCls}>
           <div>
             <h2 className="text-sm font-semibold text-white mb-1">When are you free?</h2>
-            <p className="text-xs text-gray-500">Toggle the days you're available and set your hours.</p>
+            <p className="text-xs text-gray-500">Set a time range, pick which days it applies, then add it.</p>
           </div>
 
-          <div className="flex flex-col divide-y divide-gray-800">
-            {DAYS.map((day) => {
-              const slots = free_slots[day] || [];
-              const enabled = slots.length > 0;
-              return (
-                <div key={day} className="flex items-start gap-3 py-3.5 first:pt-0 last:pb-0">
-                  {/* Toggle */}
+          {/* Add form */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <TimeSelect value={freeForm.start} onChange={(v) => setFreeForm((p) => ({ ...p, start: v }))} />
+              <span className="text-gray-600 text-xs shrink-0">–</span>
+              <TimeSelect value={freeForm.end} onChange={(v) => setFreeForm((p) => ({ ...p, end: v }))} />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1.5 flex-1">
+                {DAYS.map((day) => (
                   <button
+                    key={day}
                     type="button"
-                    role="switch"
-                    aria-checked={enabled}
-                    onClick={() =>
-                      enabled
-                        ? update({ free_slots: { ...free_slots, [day]: [] } })
-                        : addSlot(day)
-                    }
-                    className={`relative w-9 h-5 rounded-full transition-colors shrink-0 mt-0.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 ${
-                      enabled ? "bg-indigo-600" : "bg-gray-700"
+                    onClick={() => toggleFreeDay(day)}
+                    className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-all ${
+                      freeForm.days.includes(day)
+                        ? "bg-indigo-600 border-indigo-500 text-white"
+                        : "bg-gray-900 border-gray-700 text-gray-500 hover:border-gray-600 hover:text-gray-300"
                     }`}
                   >
-                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${enabled ? "translate-x-4" : "translate-x-0"}`} />
+                    {DAY_ABBR[day]}
                   </button>
-
-                  {/* Day name */}
-                  <span className={`w-24 shrink-0 text-sm font-medium capitalize ${enabled ? "text-gray-200" : "text-gray-600"}`}>
-                    {day}
-                  </span>
-
-                  {/* Slots or unavailable */}
-                  {enabled ? (
-                    <div className="flex flex-col gap-2 flex-1">
-                      {slots.map((slot, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <TimeSelect value={slot.start} onChange={(v) => updateSlot(day, i, "start", v)} />
-                          <span className="text-gray-600 text-xs shrink-0">–</span>
-                          <TimeSelect value={slot.end} onChange={(v) => updateSlot(day, i, "end", v)} />
-                          {slots.length > 1 && (
-                            <button
-                              onClick={() => removeSlot(day, i)}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-600 hover:text-red-400 hover:bg-gray-800 transition-colors shrink-0"
-                            >
-                              ×
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                      <button
-                        onClick={() => addSlot(day)}
-                        className="self-start text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
-                      >
-                        + Add time
-                      </button>
-                    </div>
-                  ) : (
-                    <span className="text-sm text-gray-600 mt-0.5">Unavailable</span>
-                  )}
-                </div>
-              );
-            })}
+                ))}
+              </div>
+              <button
+                onClick={addFreeSlot}
+                disabled={freeForm.days.length === 0}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+              >
+                Add
+              </button>
+            </div>
           </div>
+
+          {/* Current availability summary */}
+          {DAYS.some((d) => (free_slots[d] || []).length > 0) && (
+            <div className="flex flex-col divide-y divide-gray-800 border-t border-gray-800 pt-3 -mx-5 px-5">
+              {DAYS.filter((d) => (free_slots[d] || []).length > 0).map((day) => (
+                <div key={day} className="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                  <span className="text-sm font-medium text-gray-300 capitalize w-24 shrink-0 mt-0.5">{day}</span>
+                  <div className="flex flex-col gap-1.5 flex-1">
+                    {free_slots[day].map((slot, i) => (
+                      <div key={i} className="flex items-center justify-between">
+                        <span className="text-sm text-gray-400">
+                          {TIMES.find((t) => t.value === slot.start)?.label ?? slot.start}
+                          {" – "}
+                          {TIMES.find((t) => t.value === slot.end)?.label ?? slot.end}
+                        </span>
+                        <button
+                          onClick={() => removeSlot(day, i)}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-600 hover:text-red-400 hover:bg-gray-800 transition-colors shrink-0"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* ── RECURRING COMMITMENTS ── */}

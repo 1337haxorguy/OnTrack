@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const API_BASE = "https://ontrack-sq87.onrender.com";
+const API_BASE = import.meta.env.VITE_API_BASE;
 
 interface Task {
   title: string;

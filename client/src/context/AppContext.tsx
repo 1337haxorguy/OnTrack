@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 
-const API_BASE = "https://ontrack-sq87.onrender.com";
+const API_BASE = import.meta.env.VITE_API_BASE;
 
 export const DAYS = [
   "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
@@ -99,6 +99,8 @@ interface AppContextType {
   setSchedule: React.Dispatch<React.SetStateAction<Schedule>>;
   plan: DayPlan[] | null;
   setPlan: React.Dispatch<React.SetStateAction<DayPlan[] | null>>;
+  avatar: string | null;
+  setAvatar: React.Dispatch<React.SetStateAction<string | null>>;
   dataLoaded: boolean;
 }
 
@@ -110,6 +112,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [schedule, setSchedule] = useState<Schedule>(defaultSchedule);
   const [plan, setPlan] = useState<DayPlan[] | null>(null);
+  const [avatar, setAvatar] = useState<string | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
 
   // Ref so flushToDb always has the latest getAccessTokenSilently without re-creating the function
@@ -119,7 +122,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Debounced DB write
   const syncEnabled = useRef(false);
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pending = useRef<{ goals?: Goal[]; schedule?: Schedule; plan?: DayPlan[] | null }>({});
+  const pending = useRef<{ goals?: Goal[]; schedule?: Schedule; plan?: DayPlan[] | null; avatar?: string | null }>({});
 
   const flushToDb = async () => {
     if (!syncEnabled.current || !isAuthenticated) return;
@@ -168,6 +171,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           if (data.goals?.length > 0) setGoals(data.goals);
           if (data.schedule)          { setSchedule(data.schedule); dbHadSchedule = true; }
           if (data.plan?.length > 0)  setPlan(data.plan);
+          if (data.avatar)            setAvatar(data.avatar);
         }
       } catch (e) {
         console.warn("Could not load user data from DB:", e);
@@ -189,9 +193,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { queueSync({ goals });    }, [goals]);    // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { queueSync({ schedule }); }, [schedule]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { queueSync({ plan });     }, [plan]);     // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { queueSync({ avatar });   }, [avatar]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <AppContext.Provider value={{ goals, setGoals, schedule, setSchedule, plan, setPlan, dataLoaded }}>
+    <AppContext.Provider value={{ goals, setGoals, schedule, setSchedule, plan, setPlan, avatar, setAvatar, dataLoaded }}>
       {children}
     </AppContext.Provider>
   );

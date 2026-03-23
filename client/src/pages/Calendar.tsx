@@ -4,7 +4,7 @@ import { useApp } from "../context/AppContext";
 import type { DayPlan, TimeBlock } from "../context/AppContext";
 import { useAuth0 } from "@auth0/auth0-react";
 
-const API_BASE = "https://ontrack-sq87.onrender.com";
+const API_BASE = import.meta.env.VITE_API_BASE;
 
 // ---- Grid constants ----
 const HOUR_HEIGHT = 64;
@@ -121,8 +121,10 @@ interface DragState {
 
 // ---- Component ----
 export default function Calendar() {
-  const { goals, schedule, plan, setPlan } = useApp();
+  const { goals, setGoals, schedule, plan, setPlan } = useApp();
   const { isAuthenticated, getAccessTokenSilently } = useAuth0();
+
+  useEffect(() => { document.title = "Calendar — OnTrack"; }, []);
 
   const [view, setView] = useState<CalendarView>("week");
   const [viewDate, setViewDate] = useState<Date>(() => {
@@ -133,11 +135,20 @@ export default function Calendar() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedEvent, setSelectedEvent] = useState<SelectedEvent | null>(null);
-  const [modalMode, setModalMode] = useState<"detail" | "regen" | "reschedule">("detail");
+  const [modalMode, setModalMode] = useState<"detail" | "regen" | "regen-block" | "reschedule">("detail");
   const [regenFeedback, setRegenFeedback] = useState("");
   const [regenLoading, setRegenLoading] = useState(false);
+  const [regenBlockFeedback, setRegenBlockFeedback] = useState("");
+  const [regenBlockLoading, setRegenBlockLoading] = useState(false);
   const [rsDate, setRsDate] = useState("");
   const [rsStart, setRsStart] = useState("");
+  // Per-task modal state (key = task index)
+  const [taskModalMode, setTaskModalMode] = useState<Record<number, "regen" | "edit" | null>>({});
+  const [taskModalFeedback, setTaskModalFeedback] = useState<Record<number, string>>({});
+  const [taskModalRegen, setTaskModalRegen] = useState<Record<number, boolean>>({});
+  const [taskModalEdit, setTaskModalEdit] = useState<Record<number, { title: string; description: string; estimated_minutes: number }>>({});
+  // Save-to-goal prompt
+  const [pendingSave, setPendingSave] = useState<{ feedback: string; goalId: string } | null>(null);
 
   const gridRef = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -339,11 +350,117 @@ export default function Calendar() {
       }
       setSelectedEvent(null);
       setRegenFeedback("");
+      setTaskModalMode({});
+      setTaskModalFeedback({});
+      setTaskModalEdit({});
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to regenerate day");
     } finally {
       setRegenLoading(false);
     }
+  };
+
+  const regenerateSelectedBlock = async () => {
+    if (!plan || !selectedEvent) return;
+    const { dayIdx, blockIdx } = selectedEvent;
+    const block = plan[dayIdx].time_blocks[blockIdx];
+    setRegenBlockLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/generate/regenerate-day`, {
+        method: "POST",
+        headers: await authHeaders(),
+        body: JSON.stringify({
+          date: plan[dayIdx].date,
+          current_day_plan: { date: plan[dayIdx].date, objective: block.label, time_blocks: [block] },
+          feedback: regenBlockFeedback || `Regenerate only the "${block.label}" block.`,
+          goals,
+          availability: schedule,
+        }),
+      });
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      const data: DayPlan = await res.json();
+      const newBlock = data.time_blocks?.[0];
+      if (newBlock) {
+        setPlan(prev => prev!.map((d, di) =>
+          di !== dayIdx ? d : {
+            ...d,
+            time_blocks: d.time_blocks.map((b, bi) =>
+              bi === blockIdx ? { ...newBlock, id: crypto.randomUUID() } : b
+            ),
+          }
+        ));
+        setSelectedEvent(prev => prev ? { ...prev, block: { ...newBlock, id: prev.block.id } } : null);
+      }
+      if (regenBlockFeedback && goals.length > 0) setPendingSave({ feedback: regenBlockFeedback, goalId: goals[0].id });
+      setRegenBlockFeedback("");
+      setModalMode("detail");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to regenerate block");
+    } finally {
+      setRegenBlockLoading(false);
+    }
+  };
+
+  const regenerateSelectedTask = async (ti: number) => {
+    if (!plan || !selectedEvent) return;
+    const { dayIdx, blockIdx } = selectedEvent;
+    const block = plan[dayIdx].time_blocks[blockIdx];
+    const task = block.tasks[ti];
+    const fb = taskModalFeedback[ti] || "";
+    setTaskModalRegen(prev => ({ ...prev, [ti]: true }));
+    try {
+      const res = await fetch(`${API_BASE}/api/generate/regenerate-day`, {
+        method: "POST",
+        headers: await authHeaders(),
+        body: JSON.stringify({
+          date: plan[dayIdx].date,
+          current_day_plan: { date: plan[dayIdx].date, objective: block.label, time_blocks: [{ ...block, tasks: [task] }] },
+          feedback: fb || `Regenerate only the "${task.title}" task in "${block.label}".`,
+          goals,
+          availability: schedule,
+        }),
+      });
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      const data: DayPlan = await res.json();
+      const newTask = data.time_blocks?.[0]?.tasks?.[0];
+      if (newTask) {
+        const updatedTasks = block.tasks.map((t, j) => (j === ti ? newTask : t));
+        const updatedBlock = { ...block, tasks: updatedTasks };
+        setPlan(prev => prev!.map((d, di) =>
+          di !== dayIdx ? d : {
+            ...d,
+            time_blocks: d.time_blocks.map((b, bi) => bi === blockIdx ? updatedBlock : b),
+          }
+        ));
+        setSelectedEvent(prev => prev ? { ...prev, block: updatedBlock } : null);
+      }
+      if (fb && goals.length > 0) setPendingSave({ feedback: fb, goalId: goals[0].id });
+      setTaskModalFeedback(prev => ({ ...prev, [ti]: "" }));
+      setTaskModalMode(prev => ({ ...prev, [ti]: null }));
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to regenerate task");
+    } finally {
+      setTaskModalRegen(prev => ({ ...prev, [ti]: false }));
+    }
+  };
+
+  const saveSelectedTaskEdit = (ti: number) => {
+    if (!plan || !selectedEvent) return;
+    const { dayIdx, blockIdx } = selectedEvent;
+    const block = plan[dayIdx].time_blocks[blockIdx];
+    const edits = taskModalEdit[ti];
+    if (!edits) return;
+    const updatedTasks = block.tasks.map((t, j) => (j === ti ? { ...t, ...edits } : t));
+    const updatedBlock = { ...block, tasks: updatedTasks };
+    setPlan(prev => prev!.map((d, di) =>
+      di !== dayIdx ? d : {
+        ...d,
+        time_blocks: d.time_blocks.map((b, bi) => bi === blockIdx ? updatedBlock : b),
+      }
+    ));
+    setSelectedEvent(prev => prev ? { ...prev, block: updatedBlock } : null);
+    setTaskModalMode(prev => ({ ...prev, [ti]: null }));
+    setTaskModalEdit(prev => { const n = { ...prev }; delete n[ti]; return n; });
   };
 
   const openReschedule = () => {
@@ -977,9 +1094,9 @@ export default function Calendar() {
       {selectedEvent && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          onClick={(e) => e.target === e.currentTarget && setSelectedEvent(null)}
+          onClick={(e) => { if (e.target === e.currentTarget) { setSelectedEvent(null); setModalMode("detail"); setTaskModalMode({}); setTaskModalEdit({}); setPendingSave(null); } }}
         >
-          <div className="absolute inset-0 bg-black/50" onClick={() => setSelectedEvent(null)} />
+          <div className="absolute inset-0 bg-black/50" onClick={() => { setSelectedEvent(null); setModalMode("detail"); setTaskModalMode({}); setTaskModalEdit({}); setPendingSave(null); }} />
           <div className="relative bg-gray-900 border border-gray-700 rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
 
             {/* Header */}
@@ -1003,7 +1120,7 @@ export default function Calendar() {
                 </p>
               </div>
               <button
-                onClick={() => setSelectedEvent(null)}
+                onClick={() => { setSelectedEvent(null); setModalMode("detail"); setTaskModalMode({}); setTaskModalEdit({}); setPendingSave(null); }}
                 className="p-1 rounded hover:bg-gray-700 text-gray-500 hover:text-white transition-colors text-lg leading-none"
               >
                 ✕
@@ -1014,35 +1131,146 @@ export default function Calendar() {
             <div className="p-4 max-h-[55vh] overflow-y-auto">
               {modalMode === "detail" && (
                 <>
+                  {/* Save-to-goal banner */}
+                  {pendingSave && (
+                    <div className="mb-4 rounded-lg border border-amber-700/40 bg-amber-950/30 p-3 flex flex-col gap-2">
+                      <p className="text-xs font-semibold text-amber-300">Save this preference to a goal?</p>
+                      <p className="text-xs text-amber-200/60 italic">"{pendingSave.feedback}"</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {goals.length > 1 && (
+                          <select
+                            className="px-2 py-1 border border-gray-700 rounded-lg bg-gray-900 text-white text-xs focus:outline-none cursor-pointer"
+                            value={pendingSave.goalId}
+                            onChange={e => setPendingSave(prev => prev ? { ...prev, goalId: e.target.value } : null)}
+                          >
+                            {goals.map(g => <option key={g.id} value={g.id}>{g.title}</option>)}
+                          </select>
+                        )}
+                        {goals.length === 1 && <span className="text-xs text-gray-400">→ <span className="text-white">{goals[0].title}</span></span>}
+                        <button
+                          onClick={() => {
+                            if (!pendingSave) return;
+                            setGoals(prev => prev.map(g =>
+                              g.id === pendingSave.goalId
+                                ? { ...g, restrictions: [...g.restrictions, pendingSave.feedback] }
+                                : g
+                            ));
+                            setPendingSave(null);
+                          }}
+                          className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 rounded text-xs text-white font-medium transition-colors"
+                        >
+                          Save
+                        </button>
+                        <button onClick={() => setPendingSave(null)} className="text-xs text-gray-500 hover:text-white transition-colors">Dismiss</button>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="mb-4 p-3 rounded-lg bg-gray-800/60 border border-gray-700/50">
                     <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">
                       Day Objective
                     </p>
                     <p className="text-sm text-gray-300 leading-relaxed">{selectedEvent.dayPlan.objective}</p>
                   </div>
-                  <div className="flex flex-col gap-3">
-                    {(plan?.[selectedEvent.dayIdx]?.time_blocks[selectedEvent.blockIdx]?.tasks ?? selectedEvent.block.tasks).map((task, ti) => (
-                      <button
-                        key={ti}
-                        className={`text-left border-l-2 pl-3 transition-colors ${task.completed ? "border-emerald-600/60" : "border-indigo-500/60"}`}
-                        onClick={() => toggleTaskComplete(selectedEvent.dayIdx, selectedEvent.blockIdx, ti)}
-                      >
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${task.completed ? "bg-emerald-600 border-emerald-600" : "border-gray-500 hover:border-indigo-400"}`}>
-                            {task.completed && (
-                              <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 8" fill="none">
-                                <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            )}
-                          </div>
-                          <span className={`text-sm font-medium transition-colors ${task.completed ? "text-gray-500 line-through" : "text-white"}`}>{task.title}</span>
-                          <span className="text-[10px] text-gray-500 bg-gray-800 px-1.5 py-0.5 rounded tabular-nums">
-                            {task.estimated_minutes} min
-                          </span>
+                  <div className="flex flex-col gap-2">
+                    {(plan?.[selectedEvent.dayIdx]?.time_blocks[selectedEvent.blockIdx]?.tasks ?? selectedEvent.block.tasks).map((task, ti) => {
+                      const tMode = taskModalMode[ti] ?? null;
+                      const editVals = taskModalEdit[ti] ?? { title: task.title, description: task.description, estimated_minutes: task.estimated_minutes };
+                      return (
+                        <div key={ti} className="group">
+                          {tMode !== "edit" && (
+                            <div className={`border-l-2 pl-3 transition-colors ${task.completed ? "border-emerald-600/60" : "border-indigo-500/60"}`}>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <button
+                                  onClick={() => toggleTaskComplete(selectedEvent.dayIdx, selectedEvent.blockIdx, ti)}
+                                  className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${task.completed ? "bg-emerald-600 border-emerald-600" : "border-gray-500 hover:border-indigo-400"}`}
+                                >
+                                  {task.completed && (
+                                    <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 8" fill="none">
+                                      <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                  )}
+                                </button>
+                                <span className={`text-sm font-medium flex-1 transition-colors ${task.completed ? "text-gray-500 line-through" : "text-white"}`}>{task.title}</span>
+                                <span className="text-[10px] text-gray-500 bg-gray-800 px-1.5 py-0.5 rounded tabular-nums">{task.estimated_minutes} min</span>
+                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={() => {
+                                      setTaskModalEdit(prev => ({ ...prev, [ti]: { title: task.title, description: task.description, estimated_minutes: task.estimated_minutes } }));
+                                      setTaskModalMode(prev => ({ ...prev, [ti]: "edit" }));
+                                    }}
+                                    className="px-1.5 py-0.5 text-[10px] border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 rounded transition-colors"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => setTaskModalMode(prev => ({ ...prev, [ti]: tMode === "regen" ? null : "regen" }))}
+                                    className={`px-1.5 py-0.5 text-[10px] border rounded transition-colors ${tMode === "regen" ? "border-indigo-600/50 text-indigo-400" : "border-gray-700 text-gray-400 hover:text-white hover:border-gray-500"}`}
+                                  >
+                                    Regen
+                                  </button>
+                                </div>
+                              </div>
+                              <p className={`text-xs mt-0.5 leading-relaxed transition-colors ${task.completed ? "text-gray-600 line-through" : "text-gray-400"}`}>{task.description}</p>
+                            </div>
+                          )}
+
+                          {/* Inline edit */}
+                          {tMode === "edit" && (
+                            <div className="flex flex-col gap-2 p-3 bg-gray-800/50 rounded-lg border border-gray-700/50">
+                              <input
+                                className="w-full px-2.5 py-1.5 border border-gray-700 rounded-lg bg-gray-900 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                                value={editVals.title}
+                                onChange={e => setTaskModalEdit(prev => ({ ...prev, [ti]: { ...editVals, title: e.target.value } }))}
+                                placeholder="Task title"
+                              />
+                              <textarea
+                                className="w-full px-2.5 py-1.5 border border-gray-700 rounded-lg bg-gray-900 text-xs text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none min-h-[50px]"
+                                value={editVals.description}
+                                onChange={e => setTaskModalEdit(prev => ({ ...prev, [ti]: { ...editVals, description: e.target.value } }))}
+                                placeholder="Description"
+                              />
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="number" min={1}
+                                  className="w-16 px-2 py-1.5 border border-gray-700 rounded-lg bg-gray-900 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                                  value={editVals.estimated_minutes}
+                                  onChange={e => setTaskModalEdit(prev => ({ ...prev, [ti]: { ...editVals, estimated_minutes: parseInt(e.target.value) || 0 } }))}
+                                />
+                                <span className="text-xs text-gray-500">min</span>
+                                <div className="flex gap-2 ml-auto">
+                                  <button onClick={() => saveSelectedTaskEdit(ti)} className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 rounded text-xs text-white font-medium transition-colors">Save</button>
+                                  <button onClick={() => { setTaskModalMode(prev => ({ ...prev, [ti]: null })); setTaskModalEdit(prev => { const n = { ...prev }; delete n[ti]; return n; }); }} className="px-2.5 py-1 text-xs text-gray-500 hover:text-white transition-colors">Cancel</button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Per-task regen */}
+                          {tMode === "regen" && (
+                            <div className="mt-1 ml-3 p-2.5 bg-indigo-950/30 border border-indigo-900/40 rounded-lg flex flex-col gap-2">
+                              <textarea
+                                className="w-full px-2.5 py-1.5 border border-gray-700 rounded-lg bg-gray-900 text-white text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none min-h-[50px] placeholder:text-gray-600"
+                                placeholder="e.g. Make it easier, less weight, different focus…"
+                                value={taskModalFeedback[ti] || ""}
+                                onChange={e => setTaskModalFeedback(prev => ({ ...prev, [ti]: e.target.value }))}
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => regenerateSelectedTask(ti)}
+                                  disabled={taskModalRegen[ti]}
+                                  className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 rounded text-xs text-white font-medium disabled:opacity-50 transition-colors"
+                                >
+                                  {taskModalRegen[ti] && <span className="w-2.5 h-2.5 border border-white/40 border-t-white rounded-full animate-spin" />}
+                                  {taskModalRegen[ti] ? "Regenerating…" : "Regenerate"}
+                                </button>
+                                <button onClick={() => setTaskModalMode(prev => ({ ...prev, [ti]: null }))} className="text-xs text-gray-500 hover:text-white transition-colors">Cancel</button>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <p className={`text-xs mt-0.5 leading-relaxed transition-colors ${task.completed ? "text-gray-600 line-through" : "text-gray-400"}`}>{task.description}</p>
-                      </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 </>
               )}
@@ -1074,6 +1302,37 @@ export default function Calendar() {
                       disabled={regenLoading}
                     >
                       {regenLoading ? "Regenerating…" : "Regenerate"}
+                    </button>
+                    <button
+                      className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                      onClick={() => setModalMode("detail")}
+                    >
+                      Back
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {modalMode === "regen-block" && (
+                <div className="flex flex-col gap-3">
+                  <p className="text-sm text-gray-400">
+                    Regenerate only the <span className="text-white font-medium">"{selectedEvent.block.label}"</span> block.
+                  </p>
+                  <textarea
+                    className="p-2.5 border border-gray-600 rounded-lg bg-gray-800 text-white text-sm w-full min-h-[80px] resize-y focus:outline-none focus:border-indigo-500 transition-colors"
+                    placeholder="Optional feedback (e.g. less weight, more theory, skip warm-up…)"
+                    value={regenBlockFeedback}
+                    onChange={(e) => setRegenBlockFeedback(e.target.value)}
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      className="flex items-center gap-2 px-4 py-2 bg-indigo-600 rounded-lg text-sm text-white hover:bg-indigo-700 disabled:opacity-60 transition-colors"
+                      onClick={regenerateSelectedBlock}
+                      disabled={regenBlockLoading}
+                    >
+                      {regenBlockLoading && <span className="w-3.5 h-3.5 border border-white/40 border-t-white rounded-full animate-spin" />}
+                      {regenBlockLoading ? "Regenerating…" : "Regenerate block"}
                     </button>
                     <button
                       className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
@@ -1144,7 +1403,13 @@ export default function Calendar() {
 
             {/* Footer */}
             {modalMode === "detail" && (
-              <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-700/80 bg-gray-900/50">
+              <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-700/80 bg-gray-900/50 flex-wrap">
+                <button
+                  className="px-3 py-1.5 text-xs border border-gray-700 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-white transition-colors"
+                  onClick={() => setModalMode("regen-block")}
+                >
+                  Regenerate block
+                </button>
                 <button
                   className="px-3 py-1.5 text-xs border border-gray-700 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-white transition-colors"
                   onClick={() => setModalMode("regen")}
@@ -1155,7 +1420,7 @@ export default function Calendar() {
                   className="px-3 py-1.5 text-xs border border-gray-700 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-white transition-colors"
                   onClick={openReschedule}
                 >
-                  Reschedule block
+                  Reschedule
                 </button>
               </div>
             )}

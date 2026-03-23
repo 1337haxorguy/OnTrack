@@ -4,12 +4,15 @@ import GoalsOverview from "./pages/GoalsOverview";
 import CreateGoal from "./pages/CreateGoal";
 import Calendar from "./pages/Calendar";
 import Profile from "./pages/Profile";
+import Account from "./pages/Account";
+import Today from "./pages/Today";
 import TestGenerate from "./pages/TestGenerate";
 import Landing from "./pages/Landing";
 import { useApp } from "./context/AppContext";
 
 const NAV_LINKS = [
   { to: "/", label: "Goals" },
+  { to: "/today", label: "Today" },
   { to: "/calendar", label: "Calendar" },
   { to: "/profile", label: "Schedule" },
 ];
@@ -24,7 +27,7 @@ function ProtectedRoute({ element }: { element: React.ReactElement }) {
 
 function App() {
   const { user, isAuthenticated, isLoading, loginWithRedirect, logout } = useAuth0();
-  const { dataLoaded } = useApp();
+  const { dataLoaded, avatar } = useApp();
   const location = useLocation();
 
   // Content to render inside <main> for the "/" route
@@ -87,20 +90,18 @@ function App() {
           {/* Right: user */}
           <div className="flex items-center gap-3">
             {isLoading ? null : isAuthenticated && user ? (
-              <>
-                <div
-                  className="w-7 h-7 rounded-full bg-indigo-600/80 flex items-center justify-center text-[11px] font-semibold text-white select-none"
-                  title={user.name || user.email}
-                >
-                  {userInitials}
-                </div>
-                <button
-                  onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
-                  className="text-sm text-gray-500 hover:text-gray-200 transition-colors"
-                >
-                  Log out
-                </button>
-              </>
+              <Link
+                to="/account"
+                title={user.name || user.email}
+                className={`w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-semibold text-white select-none transition-opacity hover:opacity-80 shrink-0 ${
+                  !avatar ? (location.pathname === "/account" ? "bg-indigo-500" : "bg-indigo-600/80") : ""
+                }`}
+              >
+                {avatar
+                  ? <img src={avatar} alt="Profile" className="w-full h-full object-cover" />
+                  : userInitials
+                }
+              </Link>
             ) : (
               <button
                 onClick={() => loginWithRedirect()}
@@ -119,8 +120,10 @@ function App() {
           <Route path="/" element={homeElement()} />
           <Route path="/goals/new" element={<ProtectedRoute element={dataLoaded ? <CreateGoal /> : <></>} />} />
           <Route path="/goals/:id"  element={<ProtectedRoute element={dataLoaded ? <CreateGoal /> : <></>} />} />
+          <Route path="/today"      element={<ProtectedRoute element={dataLoaded ? <Today />    : <></>} />} />
           <Route path="/calendar"   element={<ProtectedRoute element={dataLoaded ? <Calendar />  : <></>} />} />
           <Route path="/profile"    element={<ProtectedRoute element={dataLoaded ? <Profile />   : <></>} />} />
+          <Route path="/account"    element={<ProtectedRoute element={<Account />} />} />
           <Route path="/test"       element={<ProtectedRoute element={<TestGenerate />} />} />
         </Routes>
       </main>

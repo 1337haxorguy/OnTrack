@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import type { DayPlan } from "../context/AppContext";
 import { useAuth0 } from "@auth0/auth0-react";
 
-const API_BASE = "https://ontrack-sq87.onrender.com";
+const API_BASE = import.meta.env.VITE_API_BASE;
 
 export default function GoalsOverview() {
   const { goals, schedule, setPlan } = useApp();
@@ -12,6 +12,8 @@ export default function GoalsOverview() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => { document.title = "OnTrack"; }, []);
 
   const generate = async () => {
     if (goals.length === 0) return;
