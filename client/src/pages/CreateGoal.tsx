@@ -28,7 +28,7 @@ const emptyGoal = (): Omit<Goal, "id"> => {
     hours_per_week: 4,
     has_daily_limit: false,
     daily_limit_minutes: 60,
-    selected_days: [],
+    selected_days: [...DAYS],
   };
 };
 
