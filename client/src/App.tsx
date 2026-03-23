@@ -26,7 +26,7 @@ function ProtectedRoute({ element }: { element: React.ReactElement }) {
 }
 
 function App() {
-  const { user, isAuthenticated, isLoading, loginWithRedirect, logout } = useAuth0();
+  const { user, isAuthenticated, isLoading, loginWithRedirect } = useAuth0();
   const { dataLoaded, avatar } = useApp();
   const location = useLocation();
 
