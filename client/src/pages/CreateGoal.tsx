@@ -4,7 +4,7 @@ import { useApp, DAYS } from "../context/AppContext";
 import { useAuth0 } from "@auth0/auth0-react";
 import type { Goal, FollowupQuestion, DayPlan } from "../context/AppContext";
 
-const API_BASE = "http://localhost:3000";
+const API_BASE = "https://ontrack-sq87.onrender.com";
 
 const fmt = (d: Date) => {
   const y = d.getFullYear();

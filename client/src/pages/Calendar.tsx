@@ -4,7 +4,7 @@ import { useApp } from "../context/AppContext";
 import type { DayPlan, TimeBlock } from "../context/AppContext";
 import { useAuth0 } from "@auth0/auth0-react";
 
-const API_BASE = "http://localhost:3000";
+const API_BASE = "https://ontrack-sq87.onrender.com";
 
 // ---- Grid constants ----
 const HOUR_HEIGHT = 64;

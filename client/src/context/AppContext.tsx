@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 
-const API_BASE = "http://localhost:3000";
+const API_BASE = "https://ontrack-sq87.onrender.com";
 
 export const DAYS = [
   "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
