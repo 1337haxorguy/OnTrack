@@ -55,6 +55,15 @@ function formatHour(h: number): string {
   return h < 12 ? `${h} AM` : `${h - 12} PM`;
 }
 
+function calcEndTime(startTime: string, tasks: { estimated_minutes: number }[]): string {
+  const totalMins = tasks.reduce((s, t) => s + t.estimated_minutes, 0);
+  const [h, m] = startTime.split(":").map(Number);
+  const endMins = h * 60 + m + totalMins;
+  const endH = Math.floor(endMins / 60) % 24;
+  const endM = endMins % 60;
+  return `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+}
+
 function formatTime(t: string): string {
   const [h, m] = t.split(":").map(Number);
   const period = h < 12 ? "AM" : "PM";
@@ -371,25 +380,29 @@ export default function Calendar() {
         headers: await authHeaders(),
         body: JSON.stringify({
           date: plan[dayIdx].date,
-          current_day_plan: { date: plan[dayIdx].date, objective: block.label, time_blocks: [block] },
+          current_day_plan: { date: plan[dayIdx].date, objective: block.label, time_blocks: [{ ...block, start_time: null, end_time: null }] },
           feedback: regenBlockFeedback || `Regenerate only the "${block.label}" block.`,
           goals,
           availability: schedule,
+          preserve_times: true,
         }),
       });
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
-      const data: DayPlan = await res.json();
+      const data: DayPlan | null = await res.json();
+      if (!data) throw new Error("No response from server");
       const newBlock = data.time_blocks?.[0];
       if (newBlock) {
+        const endTime = block.start_time ? calcEndTime(block.start_time, newBlock.tasks) : block.end_time;
+        const mergedBlock = { ...block, tasks: newBlock.tasks, end_time: endTime, id: crypto.randomUUID() };
         setPlan(prev => prev!.map((d, di) =>
           di !== dayIdx ? d : {
             ...d,
             time_blocks: d.time_blocks.map((b, bi) =>
-              bi === blockIdx ? { ...newBlock, id: crypto.randomUUID() } : b
+              bi === blockIdx ? mergedBlock : b
             ),
           }
         ));
-        setSelectedEvent(prev => prev ? { ...prev, block: { ...newBlock, id: prev.block.id } } : null);
+        setSelectedEvent(prev => prev ? { ...prev, block: { ...mergedBlock, id: prev.block.id } } : null);
       }
       if (regenBlockFeedback && goals.length > 0) setPendingSave({ feedback: regenBlockFeedback, goalId: goals[0].id });
       setRegenBlockFeedback("");
@@ -414,18 +427,21 @@ export default function Calendar() {
         headers: await authHeaders(),
         body: JSON.stringify({
           date: plan[dayIdx].date,
-          current_day_plan: { date: plan[dayIdx].date, objective: block.label, time_blocks: [{ ...block, tasks: [task] }] },
-          feedback: fb || `Regenerate only the "${task.title}" task in "${block.label}".`,
+          current_day_plan: { date: plan[dayIdx].date, objective: block.label, time_blocks: [{ ...block, tasks: [task], start_time: null, end_time: null }] },
+          feedback: fb || `Regenerate only the "${task.title}" task in "${block.label}". Return exactly 1 time block with exactly 1 task.`,
           goals,
           availability: schedule,
+          preserve_times: true,
         }),
       });
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
-      const data: DayPlan = await res.json();
+      const data: DayPlan | null = await res.json();
+      if (!data) throw new Error("No response from server");
       const newTask = data.time_blocks?.[0]?.tasks?.[0];
       if (newTask) {
         const updatedTasks = block.tasks.map((t, j) => (j === ti ? newTask : t));
-        const updatedBlock = { ...block, tasks: updatedTasks };
+        const endTime = block.start_time ? calcEndTime(block.start_time, updatedTasks) : block.end_time;
+        const updatedBlock = { ...block, tasks: updatedTasks, end_time: endTime };
         setPlan(prev => prev!.map((d, di) =>
           di !== dayIdx ? d : {
             ...d,

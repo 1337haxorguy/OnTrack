@@ -396,6 +396,7 @@ export default function CreateGoal() {
   const [newRequest, setNewRequest]         = useState("");
   const [qLoading, setQLoading]             = useState(false);
   const [qError, setQError]                 = useState("");
+  const [titleForQuestions, setTitleForQuestions] = useState("");
   const [titleError, setTitleError]         = useState("");
   const [saveLoading, setSaveLoading]       = useState(false);
   const [saveError, setSaveError]           = useState("");
@@ -493,6 +494,7 @@ export default function CreateGoal() {
         user_response: "",
       }));
       patch({ followup_questions: newQs });
+      setTitleForQuestions(title);
     } catch (e: unknown) {
       setQError(e instanceof Error ? e.message : "Failed to generate questions");
     } finally {
@@ -549,7 +551,7 @@ export default function CreateGoal() {
         time_blocks: day.time_blocks.map((b) => ({ ...b, id: crypto.randomUUID() })),
       }));
       setPlan(planWithIds);
-      navigate("/calendar");
+      navigate("/");
     } catch (e: unknown) {
       setGenerateError(e instanceof Error ? e.message : "Failed to generate plan");
       setGenerating(false);
@@ -558,7 +560,7 @@ export default function CreateGoal() {
 
   // ---- Save handlers ----
 
-  // For new goals: validate → save → generate → navigate to /calendar
+  // For new goals: validate → save → generate → navigate to /
   const handleGenerate = async () => {
     if (!form.title.trim()) return;
     setSaveLoading(true);
@@ -929,7 +931,11 @@ export default function CreateGoal() {
             <button
               className="px-6 py-2.5 bg-indigo-600 rounded-lg text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               disabled={!form.title.trim()}
-              onClick={() => setStep(2)}
+              onClick={() => {
+                const titleChanged = form.title.trim() !== titleForQuestions && form.followup_questions.length > 0;
+                if (titleChanged) generateQuestions();
+                setStep(2);
+              }}
             >
               Next →
             </button>

@@ -528,7 +528,7 @@ ${timeBlockRule}
 });
 
 router.post("/regenerate-day", async (req, res) => {
-  const { date, current_day_plan, feedback, goals, availability } = req.body;
+  const { date, current_day_plan, feedback, goals, availability, preserve_times } = req.body;
 
   if (!date || !goals || !availability) {
     return res.status(400).json({ error: "date, goals, and availability are required." });
@@ -574,13 +574,9 @@ CONSTRAINTS:
     });
 
     const tz = availability?.timezone || "UTC";
-    const result = enforceAvailableWindows(
-      enforceAfterNow(
-        reconcileBlockTimes(JSON.parse(completion.choices[0].message.content)),
-        tz
-      ),
-      availability
-    );
+    let result = reconcileBlockTimes(JSON.parse(completion.choices[0].message.content));
+    if (!preserve_times) result = enforceAfterNow(result, tz);
+    result = enforceAvailableWindows(result, availability);
     const dayPlan = result.weekly_tasks?.[0] ?? null;
     res.json(dayPlan);
   } catch (err) {

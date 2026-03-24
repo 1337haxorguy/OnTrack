@@ -13,6 +13,15 @@ function toDateStr(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+function calcEndTime(startTime: string, tasks: { estimated_minutes: number }[]): string {
+  const totalMins = tasks.reduce((s, t) => s + t.estimated_minutes, 0);
+  const [h, m] = startTime.split(":").map(Number);
+  const endMins = h * 60 + m + totalMins;
+  const endH = Math.floor(endMins / 60) % 24;
+  const endM = endMins % 60;
+  return `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+}
+
 function formatTime(t: string): string {
   const [h, m] = t.split(":").map(Number);
   const period = h < 12 ? "AM" : "PM";
@@ -34,11 +43,13 @@ export default function Today() {
   const [blockFeedback, setBlockFeedback] = useState<Record<number, string>>({});
   const [blockRegen, setBlockRegen]       = useState<Record<number, boolean>>({});
   const [blockOpen, setBlockOpen]         = useState<Record<number, boolean>>({});
+  const [blockError, setBlockError]       = useState<Record<number, string>>({});
   // Per-task state (key = `${bi}-${ti}`)
   const [taskOpen, setTaskOpen]           = useState<Record<string, "regen" | "edit" | null>>({});
   const [taskFeedback, setTaskFeedback]   = useState<Record<string, string>>({});
   const [taskRegen, setTaskRegen]         = useState<Record<string, boolean>>({});
   const [taskEdit, setTaskEdit]           = useState<Record<string, { title: string; description: string; estimated_minutes: number }>>({});
+  const [taskError, setTaskError]         = useState<Record<string, string>>({});
   // Save-to-goal prompt
   const [pendingSave, setPendingSave]     = useState<{ feedback: string; goalId: string } | null>(null);
 
@@ -108,11 +119,10 @@ export default function Today() {
     setBlockRegen(prev => ({ ...prev, [blockIdx]: true }));
     const fb = blockFeedback[blockIdx] || "";
 
-    // Build a modified day plan with only this block, so the AI focuses on it
     const singleBlockDay: DayPlan = {
       date: today,
       objective: block.label,
-      time_blocks: [block],
+      time_blocks: [{ ...block, start_time: null, end_time: null }],
     };
 
     try {
@@ -125,17 +135,22 @@ export default function Today() {
           feedback: fb || `Regenerate only the "${block.label}" block.`,
           goals,
           availability: schedule,
+          preserve_times: true,
         }),
       });
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
-      const data: DayPlan = await res.json();
+      const data: DayPlan | null = await res.json();
+      if (!data) throw new Error("No response from server");
       const newBlock = data.time_blocks?.[0];
       if (newBlock && todayPlan) {
         const updatedDay: DayPlan = {
           ...todayPlan,
-          time_blocks: todayPlan.time_blocks.map((b, i) =>
-            i === blockIdx ? { ...newBlock, id: crypto.randomUUID() } : b
-          ),
+          time_blocks: todayPlan.time_blocks.map((b, i) => {
+            if (i !== blockIdx) return b;
+            // Keep original start_time, recalculate end_time from new tasks
+            const endTime = b.start_time ? calcEndTime(b.start_time, newBlock.tasks) : b.end_time;
+            return { ...b, tasks: newBlock.tasks, end_time: endTime, id: crypto.randomUUID() };
+          }),
         };
         if (dayIdx >= 0) {
           setPlan(prev => prev!.map((d, i) => (i === dayIdx ? updatedDay : d)));
@@ -143,9 +158,10 @@ export default function Today() {
       }
       setBlockFeedback(prev => ({ ...prev, [blockIdx]: "" }));
       setBlockOpen(prev => ({ ...prev, [blockIdx]: false }));
+      setBlockError(prev => ({ ...prev, [blockIdx]: "" }));
       if (fb && goals.length > 0) setPendingSave({ feedback: fb, goalId: goals[0].id });
     } catch (e: unknown) {
-      setRegenError(e instanceof Error ? e.message : "Failed to regenerate block");
+      setBlockError(prev => ({ ...prev, [blockIdx]: e instanceof Error ? e.message : "Failed to regenerate block" }));
     } finally {
       setBlockRegen(prev => ({ ...prev, [blockIdx]: false }));
     }
@@ -158,12 +174,10 @@ export default function Today() {
     const fb = taskFeedback[key] || "";
     const task = block.tasks[ti];
 
-    // Send a single-task block so AI focuses only on this task
-    const singleTaskBlock: TimeBlock = { ...block, tasks: [task] };
     const singleBlockDay: DayPlan = {
       date: today,
       objective: block.label,
-      time_blocks: [singleTaskBlock],
+      time_blocks: [{ ...block, tasks: [task], start_time: null, end_time: null }],
     };
 
     try {
@@ -173,23 +187,25 @@ export default function Today() {
         body: JSON.stringify({
           date: today,
           current_day_plan: singleBlockDay,
-          feedback: fb || `Regenerate only the "${task.title}" task in the "${block.label}" block.`,
+          feedback: fb || `Regenerate only the "${task.title}" task in the "${block.label}" block. Return exactly 1 time block with exactly 1 task.`,
           goals,
           availability: schedule,
+          preserve_times: true,
         }),
       });
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
-      const data: DayPlan = await res.json();
+      const data: DayPlan | null = await res.json();
+      if (!data) throw new Error("No response from server");
       const newTask = data.time_blocks?.[0]?.tasks?.[0];
       if (newTask && todayPlan) {
         const updatedDay: DayPlan = {
           ...todayPlan,
-          time_blocks: todayPlan.time_blocks.map((b, i) =>
-            i !== bi ? b : {
-              ...b,
-              tasks: b.tasks.map((t, j) => (j === ti ? newTask : t)),
-            }
-          ),
+          time_blocks: todayPlan.time_blocks.map((b, i) => {
+            if (i !== bi) return b;
+            const updatedTasks = b.tasks.map((t, j) => (j === ti ? newTask : t));
+            const endTime = b.start_time ? calcEndTime(b.start_time, updatedTasks) : b.end_time;
+            return { ...b, tasks: updatedTasks, end_time: endTime };
+          }),
         };
         if (dayIdx >= 0) {
           setPlan(prev => prev!.map((d, i) => (i === dayIdx ? updatedDay : d)));
@@ -198,8 +214,9 @@ export default function Today() {
       if (fb && goals.length > 0) setPendingSave({ feedback: fb, goalId: goals[0].id });
       setTaskFeedback(prev => ({ ...prev, [key]: "" }));
       setTaskOpen(prev => ({ ...prev, [key]: null }));
+      setTaskError(prev => ({ ...prev, [key]: "" }));
     } catch (e: unknown) {
-      setRegenError(e instanceof Error ? e.message : "Failed to regenerate task");
+      setTaskError(prev => ({ ...prev, [key]: e instanceof Error ? e.message : "Failed to regenerate task" }));
     } finally {
       setTaskRegen(prev => ({ ...prev, [key]: false }));
     }
@@ -431,6 +448,7 @@ export default function Today() {
                     value={blockFeedback[bi] || ""}
                     onChange={e => setBlockFeedback(prev => ({ ...prev, [bi]: e.target.value }))}
                   />
+                  {blockError[bi] && <p className="text-xs text-red-400">{blockError[bi]}</p>}
                   <div className="flex gap-2">
                     <button
                       onClick={() => regenerateBlock(bi, block)}
@@ -547,6 +565,7 @@ export default function Today() {
                             value={taskFeedback[key] || ""}
                             onChange={e => setTaskFeedback(prev => ({ ...prev, [key]: e.target.value }))}
                           />
+                          {taskError[key] && <p className="text-xs text-red-400">{taskError[key]}</p>}
                           <div className="flex gap-2">
                             <button
                               onClick={() => regenerateTask(bi, ti, block)}
