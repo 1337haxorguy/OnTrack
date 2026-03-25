@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const rateLimit = require("express-rate-limit");
 require("dotenv").config({ path: "../.env" });
 const mongoose = require("mongoose")
 

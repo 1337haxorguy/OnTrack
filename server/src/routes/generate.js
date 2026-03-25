@@ -1,9 +1,28 @@
 const express = require("express");
 const OpenAI = require("openai");
+const rateLimit = require("express-rate-limit");
 
 const router = express.Router();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_KEY });
+
+// Full plan generation: 15 per hour per IP
+const generateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many plan generations. Try again in an hour." },
+});
+
+// Lighter endpoints (regen day, follow-up questions): 60 per hour per IP
+const lightLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests. Try again in an hour." },
+});
 
 const SYSTEM_PROMPT =
 `You are a routine-planning engine that generates weekly schedules for general hobbies.
@@ -324,6 +343,48 @@ function reconcileBlockTimes(result) {
   return result;
 }
 
+// ---- Plan validation ----
+// Returns an array of violation strings. Empty = valid.
+function validatePlan(result) {
+  const violations = [];
+  const days = result.weekly_tasks || [];
+
+  if (days.length === 0) {
+    violations.push("weekly_tasks is empty");
+    return violations;
+  }
+
+  for (const day of days) {
+    for (const block of day.time_blocks || []) {
+      // Every block must have at least one task (schema enforces minItems:1, but double-check)
+      if (!block.tasks || block.tasks.length === 0) {
+        violations.push(`Block "${block.label}" on ${day.date} has no tasks`);
+      }
+
+      // Blocks over 4 hours are almost certainly passive all-day placeholders
+      if (block.start_time && block.end_time) {
+        const duration = timeToMins(block.end_time) - timeToMins(block.start_time);
+        if (duration > 240) {
+          violations.push(
+            `Block "${block.label}" on ${day.date} is ${duration} min (>${240} min limit) — likely a passive placeholder`
+          );
+        }
+      }
+
+      // Every task must have a positive duration
+      for (const task of block.tasks || []) {
+        if (!task.estimated_minutes || task.estimated_minutes <= 0) {
+          violations.push(
+            `Task "${task.title}" in block "${block.label}" on ${day.date} has invalid estimated_minutes`
+          );
+        }
+      }
+    }
+  }
+
+  return violations;
+}
+
 // Build prompt from new structured format (App.tsx)
 function buildNewFormatMessage(goals, availability, preferences, previousWeek) {
   const { timezone = "UTC", free_slots = {}, recurring_blocks = [], specific_blocks = [] } = availability;
@@ -455,7 +516,7 @@ CONSTRAINTS:
 - Output JSON only and strictly conform to the provided output schema.${previousWeekSection}`;
 }
 
-router.post("/", async (req, res) => {
+router.post("/", generateLimiter, async (req, res) => {
   const { user_profile, goals, availability, preferences, generation_request, previous_week } = req.body;
 
   let userMessage;
@@ -516,40 +577,47 @@ ${timeBlockRule}
     return res.status(400).json({ error: "Invalid request: provide either user_profile (legacy) or goals + availability." });
   }
 
-  console.log("\n=== GENERATE PLAN ===");
-  console.log("Goals:", goals?.map(g => ({
-    title: g.title,
-    skill_level: g.skill_level,
-    hours_per_week: g.hours_per_week,
-    selected_days: g.selected_days,
-    timeframe: g.timeframe,
-    has_daily_limit: g.has_daily_limit,
-    daily_limit_minutes: g.daily_limit_minutes,
-  })));
-  console.log("Timezone:", availability?.timezone);
-  console.log("Free slots:", JSON.stringify(availability?.free_slots, null, 2));
-  console.log("Recurring blocks:", availability?.recurring_blocks);
-  console.log("Specific blocks:", availability?.specific_blocks);
-  console.log("Prompt:\n", userMessage);
-
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
+    const tz = availability?.timezone || "UTC";
+    const MAX_RETRIES = 1;
+    let result;
+    let lastCompletion = null;
+    let violations = [];
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      let messages = [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userMessage },
-      ],
-      response_format: OUTPUT_SCHEMA,
-    });
+      ];
 
-    const tz = availability?.timezone || "UTC";
-    const raw = reconcileBlockTimes(JSON.parse(completion.choices[0].message.content));
-    console.log("AI raw output:", JSON.stringify(raw, null, 2));
-    const afterEnforce = enforceAfterNow(raw, tz);
-    console.log("After enforceAfterNow:", JSON.stringify(afterEnforce, null, 2));
-    const result = enforceAvailableWindows(afterEnforce, availability);
-    console.log("After enforceAvailableWindows:", JSON.stringify(result, null, 2));
-    console.log("=== END GENERATE ===\n");
+      if (attempt > 0 && lastCompletion) {
+        messages = [
+          ...messages,
+          { role: "assistant", content: lastCompletion.choices[0].message.content },
+          { role: "user", content: `Your previous response failed validation:\n${violations.join("\n")}\n\nFix these issues and return a corrected plan.` },
+        ];
+      }
+
+      lastCompletion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        temperature: 0.3,
+        messages,
+        response_format: OUTPUT_SCHEMA,
+      });
+
+      const raw = reconcileBlockTimes(JSON.parse(lastCompletion.choices[0].message.content));
+
+      violations = validatePlan(raw);
+      if (violations.length > 0) {
+        console.warn(`Plan validation failed (attempt ${attempt + 1}):`, violations);
+        if (attempt < MAX_RETRIES) continue;
+      }
+
+      const afterEnforce = enforceAfterNow(raw, tz);
+      result = enforceAvailableWindows(afterEnforce, availability);
+      break;
+    }
+
     res.json(result);
   } catch (err) {
     console.error("OpenAI API error:", err.message);
@@ -557,7 +625,7 @@ ${timeBlockRule}
   }
 });
 
-router.post("/regenerate-day", async (req, res) => {
+router.post("/regenerate-day", lightLimiter, async (req, res) => {
   const { date, current_day_plan, feedback, goals, availability, preserve_times } = req.body;
 
   if (!date || !goals || !availability) {
@@ -595,20 +663,46 @@ CONSTRAINTS:
 - Output JSON only and strictly conform to the provided output schema.`;
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
+    const tz = availability?.timezone || "UTC";
+    const MAX_RETRIES = 1;
+    let dayPlan;
+    let lastCompletion = null;
+    let violations = [];
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      let messages = [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userMessage },
-      ],
-      response_format: OUTPUT_SCHEMA,
-    });
+      ];
 
-    const tz = availability?.timezone || "UTC";
-    let result = reconcileBlockTimes(JSON.parse(completion.choices[0].message.content));
-    if (!preserve_times) result = enforceAfterNow(result, tz);
-    result = enforceAvailableWindows(result, availability);
-    const dayPlan = result.weekly_tasks?.[0] ?? null;
+      if (attempt > 0 && lastCompletion) {
+        messages = [
+          ...messages,
+          { role: "assistant", content: lastCompletion.choices[0].message.content },
+          { role: "user", content: `Your previous response failed validation:\n${violations.join("\n")}\n\nFix these issues and return a corrected plan.` },
+        ];
+      }
+
+      lastCompletion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        temperature: 0.3,
+        messages,
+        response_format: OUTPUT_SCHEMA,
+      });
+
+      let result = reconcileBlockTimes(JSON.parse(lastCompletion.choices[0].message.content));
+      violations = validatePlan(result);
+      if (violations.length > 0) {
+        console.warn(`regenerate-day validation failed (attempt ${attempt + 1}):`, violations);
+        if (attempt < MAX_RETRIES) continue;
+      }
+
+      if (!preserve_times) result = enforceAfterNow(result, tz);
+      result = enforceAvailableWindows(result, availability);
+      dayPlan = result.weekly_tasks?.[0] ?? null;
+      break;
+    }
+
     res.json(dayPlan);
   } catch (err) {
     console.error("OpenAI API error:", err.message);
@@ -638,7 +732,7 @@ For multiple_choice and multi_select, options must be short (1–4 words each) a
 Return a JSON object with a "questions" array.
 If no additional questions are needed, return an empty array for "questions".`;
 
-router.post("/followup-questions", async (req, res) => {
+router.post("/followup-questions", lightLimiter, async (req, res) => {
   const { title, skill_level, restrictions, requests, additional_context } = req.body;
 
   if (!title) {

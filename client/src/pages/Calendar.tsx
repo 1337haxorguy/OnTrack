@@ -992,18 +992,38 @@ export default function Calendar() {
 
           {/* No-plan overlay */}
           {!plan && !loading && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center">
-              <div className="bg-gray-900/95 border border-gray-700 rounded-xl p-8 text-center shadow-xl">
-                <h3 className="text-base font-semibold mb-1.5">No plan yet</h3>
-                <p className="text-sm text-gray-400 mb-4">
-                  Generate a weekly plan from your goals and schedule.
-                </p>
-                <button
-                  className="px-5 py-2.5 bg-indigo-600 rounded-lg text-sm text-white hover:bg-indigo-700 transition-colors"
-                  onClick={generate}
-                >
-                  Generate Plan
-                </button>
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-950/60 backdrop-blur-sm">
+              <div className="bg-gray-900 border border-gray-700 rounded-xl p-8 text-center shadow-2xl max-w-xs mx-4">
+                <div className="w-12 h-12 rounded-xl bg-indigo-600/20 border border-indigo-600/30 flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-6 h-6 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                  </svg>
+                </div>
+                {goals.length === 0 ? (
+                  <>
+                    <h3 className="text-base font-semibold mb-1.5">No goals yet</h3>
+                    <p className="text-sm text-gray-400 mb-4">Create a goal first, then generate your weekly plan.</p>
+                    <Link
+                      to="/goals/new"
+                      className="inline-block px-5 py-2.5 bg-indigo-600 rounded-lg text-sm text-white hover:bg-indigo-700 transition-colors"
+                    >
+                      Create a goal →
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-base font-semibold mb-1.5">Calendar is empty</h3>
+                    <p className="text-sm text-gray-400 mb-4">
+                      Generate a weekly plan from your {goals.length} goal{goals.length !== 1 && "s"} to fill in your week.
+                    </p>
+                    <button
+                      className="px-5 py-2.5 bg-indigo-600 rounded-lg text-sm text-white hover:bg-indigo-700 transition-colors"
+                      onClick={generate}
+                    >
+                      Generate Plan
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}

@@ -291,6 +291,7 @@ export default function Today() {
   // ---- Empty states ----
 
   if (!plan) {
+    const hasGoals = goals.length > 0;
     return (
       <div className="flex flex-col items-center justify-center py-32 text-center">
         <div className="w-16 h-16 rounded-2xl bg-indigo-600/20 border border-indigo-600/30 flex items-center justify-center mb-5">
@@ -298,16 +299,33 @@ export default function Today() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
           </svg>
         </div>
-        <h2 className="text-xl font-bold mb-2">No plan yet</h2>
-        <p className="text-gray-400 mb-6 text-sm max-w-xs">
-          Generate a plan from your goals first, then come back here to see today's tasks.
-        </p>
-        <Link
-          to="/"
-          className="px-5 py-2.5 bg-indigo-600 rounded-lg text-white text-sm hover:bg-indigo-700 transition-colors"
-        >
-          Go to Goals
-        </Link>
+        {hasGoals ? (
+          <>
+            <h2 className="text-xl font-bold mb-2">No plan generated yet</h2>
+            <p className="text-gray-400 mb-6 text-sm max-w-xs leading-relaxed">
+              You have {goals.length} goal{goals.length !== 1 && "s"} set up. Head to Goals and hit <span className="text-white font-medium">Generate Plan</span> to get your week scheduled.
+            </p>
+            <Link
+              to="/"
+              className="px-5 py-2.5 bg-indigo-600 rounded-lg text-white text-sm hover:bg-indigo-700 transition-colors"
+            >
+              Generate my plan →
+            </Link>
+          </>
+        ) : (
+          <>
+            <h2 className="text-xl font-bold mb-2">No goals yet</h2>
+            <p className="text-gray-400 mb-6 text-sm max-w-xs leading-relaxed">
+              Create your first goal and OnTrack will build a daily plan to get you there.
+            </p>
+            <Link
+              to="/goals/new"
+              className="px-5 py-2.5 bg-indigo-600 rounded-lg text-white text-sm hover:bg-indigo-700 transition-colors"
+            >
+              Create a goal →
+            </Link>
+          </>
+        )}
       </div>
     );
   }
@@ -411,19 +429,44 @@ export default function Today() {
       )}
 
       {/* Nothing today */}
-      {!todayPlan && (
-        <div className="flex flex-col items-center py-24 text-center">
-          <div className="text-5xl mb-4">🎉</div>
-          <h2 className="text-base font-semibold text-white mb-1">Nothing scheduled today</h2>
-          <p className="text-sm text-gray-500 mb-6">Enjoy the rest — or add something by regenerating.</p>
-          <button
-            onClick={() => setShowFeedback(true)}
-            className="px-5 py-2.5 bg-indigo-600 rounded-lg text-white text-sm hover:bg-indigo-700 transition-colors"
-          >
-            Add tasks for today
-          </button>
-        </div>
-      )}
+      {!todayPlan && (() => {
+        const nextDay = plan?.find(d => d.date > today) ?? null;
+        const nextLabel = nextDay
+          ? new Date(nextDay.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })
+          : null;
+        return (
+          <div className="flex flex-col items-center py-24 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-gray-800 border border-gray-700 flex items-center justify-center mb-5">
+              <svg className="w-7 h-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 className="text-base font-semibold text-white mb-1">Free day</h2>
+            {nextLabel ? (
+              <p className="text-sm text-gray-500 mb-6 max-w-xs">
+                Nothing scheduled today. Next session is on <span className="text-gray-300">{nextLabel}</span>.
+              </p>
+            ) : (
+              <p className="text-sm text-gray-500 mb-6 max-w-xs">
+                Nothing else scheduled this week. Generate a new plan when you're ready.
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowFeedback(true)}
+                className="px-4 py-2 border border-gray-700 rounded-lg text-gray-400 text-sm hover:border-gray-500 hover:text-gray-200 transition-colors"
+              >
+                Add tasks for today
+              </button>
+              {!nextLabel && (
+                <Link to="/" className="px-4 py-2 bg-indigo-600 rounded-lg text-white text-sm hover:bg-indigo-700 transition-colors">
+                  Generate next week →
+                </Link>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Today's plan */}
       {todayPlan && (

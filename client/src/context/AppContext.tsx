@@ -73,6 +73,7 @@ export interface Task {
 
 export interface TimeBlock {
   id: string;
+  goal_id?: string;
   label: string;
   start_time: string | null;
   end_time: string | null;

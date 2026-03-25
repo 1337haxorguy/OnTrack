@@ -404,6 +404,9 @@ export default function CreateGoal() {
   const [generateError, setGenerateError]   = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showCustomDates, setShowCustomDates] = useState(false);
+  const [showRegenPrompt, setShowRegenPrompt] = useState(false);
+  const [regenLoading, setRegenLoading] = useState(false);
+  const [regenError, setRegenError] = useState("");
 
   useEffect(() => {
     document.title = isEditing && form.title.trim()
@@ -621,7 +624,55 @@ export default function CreateGoal() {
     }
     if (id) {
       setGoals((prev) => prev.map((g) => (g.id === id ? { ...form, id } : g)));
+      setShowRegenPrompt(true);
+    }
+  };
+
+  const regenerateSavedGoal = async () => {
+    if (!id) return;
+    const goal = { ...form, id };
+    setRegenLoading(true);
+    setRegenError("");
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (isAuthenticated) {
+        const token = await getAccessTokenSilently().catch(() => null);
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+      }
+      const res = await fetch(`${API_BASE}/api/generate`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          goals: [goal],
+          availability: schedule,
+          preferences: { hours_per_week: goal.hours_per_week, sessions_per_day: 1 },
+        }),
+      });
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      const data = await res.json();
+      const newDays: DayPlan[] = (data.weekly_tasks || []).map((day: DayPlan) => ({
+        ...day,
+        time_blocks: day.time_blocks.map((b) => ({ ...b, id: crypto.randomUUID(), goal_id: id })),
+      }));
+      setPlan((prev) => {
+        if (!prev) return newDays;
+        const allDates = new Set([...prev.map((d) => d.date), ...newDays.map((d) => d.date)]);
+        return Array.from(allDates).sort().map((date) => {
+          const existing = prev.find((d) => d.date === date);
+          const replacement = newDays.find((d) => d.date === date);
+          if (!existing) return replacement!;
+          const keptBlocks = existing.time_blocks.filter((b) => b.goal_id !== id);
+          const merged = [...keptBlocks, ...(replacement?.time_blocks ?? [])];
+          if (merged.length === 0) return null;
+          return { ...existing, time_blocks: merged };
+        }).filter((d): d is DayPlan => d !== null);
+      });
+      showToast({ message: `"${goal.title}" blocks updated!`, action: { label: "View calendar →", href: "/calendar" } });
       navigate("/");
+    } catch {
+      setRegenError("Failed to regenerate. You can try again from the Goals page.");
+    } finally {
+      setRegenLoading(false);
     }
   };
 
@@ -709,7 +760,33 @@ export default function CreateGoal() {
             newRequest={newRequest} setNewRequest={setNewRequest}
           />
 
+          {/* Post-save regen prompt */}
+          {showRegenPrompt && (
+            <div className="rounded-xl border border-indigo-700/50 bg-indigo-950/30 p-4 flex flex-col gap-3">
+              <p className="text-sm text-white font-medium">Goal saved!</p>
+              <p className="text-sm text-gray-400">Would you like to regenerate the plan blocks for <span className="text-white">{form.title}</span>? Other goals won't be affected.</p>
+              {regenError && <p className="text-xs text-red-400">{regenError}</p>}
+              <div className="flex gap-2">
+                <button
+                  onClick={regenerateSavedGoal}
+                  disabled={regenLoading}
+                  className="flex-1 py-2 bg-indigo-600 rounded-lg text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {regenLoading ? "Regenerating…" : "Regenerate"}
+                </button>
+                <button
+                  onClick={() => navigate("/")}
+                  disabled={regenLoading}
+                  className="flex-1 py-2 border border-gray-700 rounded-lg text-gray-400 text-sm hover:border-gray-500 hover:text-gray-200 disabled:opacity-50 transition-colors"
+                >
+                  Not now
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Actions */}
+          {!showRegenPrompt && (
           <div className="flex items-center gap-3 pt-1">
             <button
               className="flex-1 py-2.5 bg-indigo-600 rounded-lg text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -738,6 +815,7 @@ export default function CreateGoal() {
               >Delete</button>
             )}
           </div>
+          )}
         </div>
       </div>
     );
