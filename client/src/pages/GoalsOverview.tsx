@@ -113,7 +113,6 @@ export default function GoalsOverview() {
 
       setPlan(prev => {
         if (!prev) return newDays;
-        const newDates = new Set(newDays.map(d => d.date));
         const allDates = new Set([...prev.map(d => d.date), ...newDays.map(d => d.date)]);
         return Array.from(allDates).sort().map(date => {
           const existing = prev.find(d => d.date === date);
