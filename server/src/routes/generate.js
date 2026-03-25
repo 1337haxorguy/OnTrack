@@ -325,7 +325,7 @@ function reconcileBlockTimes(result) {
 }
 
 // Build prompt from new structured format (App.tsx)
-function buildNewFormatMessage(goals, availability, preferences) {
+function buildNewFormatMessage(goals, availability, preferences, previousWeek) {
   const { timezone = "UTC", free_slots = {}, recurring_blocks = [], specific_blocks = [] } = availability;
   const { sessions_per_day = 1 } = preferences || {};
 
@@ -416,6 +416,18 @@ function buildNewFormatMessage(goals, availability, preferences) {
   const targetPerDay = Math.round(hardMaxMinutes / days_per_week);
   const maxBlocksPerDay = sessions_per_day >= 2 ? 2 : 1;
 
+  let previousWeekSection = "";
+  if (previousWeek && previousWeek.total_tasks > 0) {
+    const rate = Math.round((previousWeek.completed_tasks / previousWeek.total_tasks) * 100);
+    const completed = (previousWeek.task_details || []).filter(t => t.completed).map(t => `  ✓ ${t.title} (${t.block})`).join("\n");
+    const skipped = (previousWeek.task_details || []).filter(t => !t.completed).map(t => `  ✗ ${t.title} (${t.block})`).join("\n");
+    previousWeekSection = `
+
+PREVIOUS WEEK CONTEXT:
+Completion rate: ${rate}% (${previousWeek.completed_tasks}/${previousWeek.total_tasks} tasks)${previousWeek.notes ? `\nUser notes: "${previousWeek.notes}"` : ""}${completed ? `\nCompleted:\n${completed}` : ""}${skipped ? `\nSkipped:\n${skipped}` : ""}
+Adjust next week's intensity, volume, and focus accordingly — if completion was low, reduce volume or simplify tasks; if high, increase intensity.`;
+  }
+
   return `TASK:
 Generate the routine for EXACTLY one week starting from ${startDate.toISOString().split("T")[0]}.
 
@@ -434,15 +446,17 @@ CONSTRAINTS:
 - Honor per-goal daily limits if specified
 - CRITICAL TIME CONSTRAINT: The SUM of every estimated_minutes value across ALL tasks in ALL days MUST NOT exceed ${hardMaxMinutes} minutes total. Do NOT go over ${hardMaxMinutes} minutes. Aim for approximately ${targetPerDay} minutes per day across ${days_per_week} days.
 - Each day should have 1–${maxBlocksPerDay} time block(s)
+- CRITICAL: Each time block must contain tasks for ONLY ONE goal. Never mix tasks from different goals in the same block. If multiple goals are scheduled on the same day, give each goal its own separate block.
+- CRITICAL: Never schedule passive or non-actionable activities as time blocks. This includes rest days, active recovery, stretching cooldowns, "take it easy" days, hydration reminders, or any block whose sole purpose is to not do something. If a goal requires rest on a given day, simply do not schedule that goal on that day — omit it entirely rather than filling the slot with a placeholder.
 - Every time block MUST include non-null start_time and end_time in HH:MM 24-hour format
 - Strictly respect each goal's restrictions (do not assign tasks that violate them)
 - Incorporate each goal's requests into the session structure
 - Use Q&A responses and additional context to tailor difficulty, content, and focus — a user who says they already know basics should NOT get beginner content
-- Output JSON only and strictly conform to the provided output schema.`;
+- Output JSON only and strictly conform to the provided output schema.${previousWeekSection}`;
 }
 
 router.post("/", async (req, res) => {
-  const { user_profile, goals, availability, preferences, generation_request } = req.body;
+  const { user_profile, goals, availability, preferences, generation_request, previous_week } = req.body;
 
   let userMessage;
 
@@ -497,10 +511,26 @@ ${timeBlockRule}
 `;
   } else if (goals && availability) {
     // New format (App.tsx)
-    userMessage = buildNewFormatMessage(goals, availability, preferences);
+    userMessage = buildNewFormatMessage(goals, availability, preferences, previous_week);
   } else {
     return res.status(400).json({ error: "Invalid request: provide either user_profile (legacy) or goals + availability." });
   }
+
+  console.log("\n=== GENERATE PLAN ===");
+  console.log("Goals:", goals?.map(g => ({
+    title: g.title,
+    skill_level: g.skill_level,
+    hours_per_week: g.hours_per_week,
+    selected_days: g.selected_days,
+    timeframe: g.timeframe,
+    has_daily_limit: g.has_daily_limit,
+    daily_limit_minutes: g.daily_limit_minutes,
+  })));
+  console.log("Timezone:", availability?.timezone);
+  console.log("Free slots:", JSON.stringify(availability?.free_slots, null, 2));
+  console.log("Recurring blocks:", availability?.recurring_blocks);
+  console.log("Specific blocks:", availability?.specific_blocks);
+  console.log("Prompt:\n", userMessage);
 
   try {
     const completion = await openai.chat.completions.create({
@@ -513,13 +543,13 @@ ${timeBlockRule}
     });
 
     const tz = availability?.timezone || "UTC";
-    const result = enforceAvailableWindows(
-      enforceAfterNow(
-        reconcileBlockTimes(JSON.parse(completion.choices[0].message.content)),
-        tz
-      ),
-      availability
-    );
+    const raw = reconcileBlockTimes(JSON.parse(completion.choices[0].message.content));
+    console.log("AI raw output:", JSON.stringify(raw, null, 2));
+    const afterEnforce = enforceAfterNow(raw, tz);
+    console.log("After enforceAfterNow:", JSON.stringify(afterEnforce, null, 2));
+    const result = enforceAvailableWindows(afterEnforce, availability);
+    console.log("After enforceAvailableWindows:", JSON.stringify(result, null, 2));
+    console.log("=== END GENERATE ===\n");
     res.json(result);
   } catch (err) {
     console.error("OpenAI API error:", err.message);
@@ -560,6 +590,7 @@ CONSTRAINTS:
 - Generate EXACTLY 1 entry in weekly_tasks for date ${date}
 - Include 1–2 time blocks
 - CRITICAL: Every time block MUST start and end within one of the available windows listed above
+- CRITICAL: Never schedule passive or non-actionable activities (rest, active recovery, cooldowns, hydration reminders). If the plan calls for rest, omit that block entirely.
 - Every time block MUST have start_time and end_time in HH:MM 24-hour format
 - Output JSON only and strictly conform to the provided output schema.`;
 
@@ -592,9 +623,19 @@ Your task is to generate a short list of follow-up questions (up to 5 maximum) t
 
 Do NOT ask about timeline, daily/weekly frequency, or total time to commit — those are handled separately.
 
-For each question, also decide whether it is mandatory. A question is mandatory if answering it would significantly change the structure, content, or safety of the routine — for example, knowing about physical limitations, prior injuries, access to equipment, or a specific performance deadline. Optional questions add useful colour but the plan would still be solid without them.
+For each question, decide:
+1. Whether it is mandatory (true if answering would significantly change the structure, content, or safety of the routine).
+2. The best input type for the question:
+   - "boolean": yes/no questions (e.g. "Do you have access to a gym?")
+   - "multiple_choice": pick exactly one from a short list of distinct options (e.g. skill sub-level, training style, preferred focus area). Provide 3–5 concise options.
+   - "multi_select": pick any number from a list (e.g. available equipment, areas to focus on). Provide 3–6 concise options.
+   - "scale": a 1–5 intensity/comfort rating (e.g. "How comfortable are you with X?")
+   - "open_ended": free-text, for questions that can't be meaningfully bucketed (e.g. specific injuries, deadlines, personal context).
 
-Return a JSON object with a "questions" array. Each item has "question" (string) and "mandatory" (boolean).
+Choose the most natural type for each question. Prefer structured types (boolean, multiple_choice, multi_select) over open_ended when the answer space is predictable.
+For multiple_choice and multi_select, options must be short (1–4 words each) and mutually distinct.
+
+Return a JSON object with a "questions" array.
 If no additional questions are needed, return an empty array for "questions".`;
 
 router.post("/followup-questions", async (req, res) => {
@@ -637,8 +678,10 @@ Return a JSON array of up to 5 question strings. Return [] if no questions are n
                   properties: {
                     question: { type: "string" },
                     mandatory: { type: "boolean" },
+                    type: { type: "string", enum: ["open_ended", "boolean", "multiple_choice", "multi_select", "scale"] },
+                    options: { type: "array", items: { type: "string" } },
                   },
-                  required: ["question", "mandatory"],
+                  required: ["question", "mandatory", "type", "options"],
                   additionalProperties: false,
                 },
                 description: "List of follow-up questions (up to 5)",

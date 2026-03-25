@@ -1,4 +1,4 @@
-import { Routes, Route, Link, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
 import GoalsOverview from "./pages/GoalsOverview";
 import CreateGoal from "./pages/CreateGoal";
@@ -6,6 +6,7 @@ import Calendar from "./pages/Calendar";
 import Profile from "./pages/Profile";
 import Account from "./pages/Account";
 import Today from "./pages/Today";
+import Recap from "./pages/Recap";
 import TestGenerate from "./pages/TestGenerate";
 import Landing from "./pages/Landing";
 import { useApp } from "./context/AppContext";
@@ -14,6 +15,7 @@ const NAV_LINKS = [
   { to: "/", label: "Goals" },
   { to: "/today", label: "Today" },
   { to: "/calendar", label: "Calendar" },
+  { to: "/recap", label: "Recap" },
   { to: "/profile", label: "Schedule" },
 ];
 
@@ -27,8 +29,9 @@ function ProtectedRoute({ element }: { element: React.ReactElement }) {
 
 function App() {
   const { user, isAuthenticated, isLoading, loginWithRedirect } = useAuth0();
-  const { dataLoaded, avatar } = useApp();
+  const { dataLoaded, avatar, toast, dismissToast } = useApp();
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Content to render inside <main> for the "/" route
   const homeElement = () => {
@@ -123,10 +126,32 @@ function App() {
           <Route path="/today"      element={<ProtectedRoute element={dataLoaded ? <Today />    : <></>} />} />
           <Route path="/calendar"   element={<ProtectedRoute element={dataLoaded ? <Calendar />  : <></>} />} />
           <Route path="/profile"    element={<ProtectedRoute element={dataLoaded ? <Profile />   : <></>} />} />
+          <Route path="/recap"      element={<ProtectedRoute element={dataLoaded ? <Recap /> : <></>} />} />
           <Route path="/account"    element={<ProtectedRoute element={<Account />} />} />
           <Route path="/test"       element={<ProtectedRoute element={<TestGenerate />} />} />
         </Routes>
       </main>
+
+      {/* Global toast */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-700 bg-gray-900 shadow-2xl shadow-black/40 text-sm text-white animate-in">
+          <span className="text-gray-200">{toast.message}</span>
+          {toast.action && (
+            <button
+              onClick={() => { navigate(toast.action!.href); dismissToast(); }}
+              className="shrink-0 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white text-xs font-medium transition-colors"
+            >
+              {toast.action.label}
+            </button>
+          )}
+          <button
+            onClick={dismissToast}
+            className="shrink-0 text-gray-500 hover:text-white transition-colors text-lg leading-none"
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 }

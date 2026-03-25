@@ -505,6 +505,22 @@ export default function Calendar() {
     );
   };
 
+  const toggleBlockComplete = (dayIdx: number, blockIdx: number) => {
+    if (!plan) return;
+    const allDone = plan[dayIdx]?.time_blocks[blockIdx]?.tasks.every(t => t.completed);
+    setPlan(prev => prev!.map((d, di) =>
+      di !== dayIdx ? d : {
+        ...d,
+        time_blocks: d.time_blocks.map((b, bi) =>
+          bi !== blockIdx ? b : {
+            ...b,
+            tasks: b.tasks.map(t => ({ ...t, completed: !allDone })),
+          }
+        ),
+      }
+    ));
+  };
+
   const applyReschedule = () => {
     if (!plan || !selectedEvent) return;
     const { dayIdx, blockIdx } = selectedEvent;
@@ -1119,7 +1135,26 @@ export default function Calendar() {
             <div className="flex items-start justify-between p-4 border-b border-gray-700/80">
               <div>
                 <div className="flex items-center gap-2 mb-0.5">
-                  <div className="w-2.5 h-2.5 rounded-sm bg-indigo-500 shrink-0" />
+                  {(() => {
+                    const tasks = plan?.[selectedEvent.dayIdx]?.time_blocks[selectedEvent.blockIdx]?.tasks ?? selectedEvent.block.tasks;
+                    const allDone = tasks.length > 0 && tasks.every(t => t.completed);
+                    const someDone = !allDone && tasks.some(t => t.completed);
+                    return (
+                      <button
+                        onClick={() => toggleBlockComplete(selectedEvent.dayIdx, selectedEvent.blockIdx)}
+                        className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                          allDone ? "bg-emerald-600 border-emerald-600" : someDone ? "border-indigo-500 bg-indigo-900/40" : "border-gray-500 hover:border-gray-300"
+                        }`}
+                      >
+                        {allDone && (
+                          <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 8" fill="none">
+                            <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                        {someDone && <div className="w-1.5 h-0.5 bg-indigo-400 rounded-full" />}
+                      </button>
+                    );
+                  })()}
                   <h3 className="font-semibold text-white leading-tight">{selectedEvent.block.label}</h3>
                 </div>
                 {selectedEvent.block.start_time && selectedEvent.block.end_time && (

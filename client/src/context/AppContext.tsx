@@ -11,9 +11,13 @@ export type Day = (typeof DAYS)[number];
 
 // ---- Types ----
 
+export type QuestionType = "open_ended" | "boolean" | "multiple_choice" | "multi_select" | "scale";
+
 export interface FollowupQuestion {
   question: string;
   user_response: string;
+  type?: QuestionType;
+  options?: string[];
 }
 
 export interface Goal {
@@ -92,6 +96,11 @@ const defaultSchedule: Schedule = {
 
 // ---- Context ----
 
+export interface Toast {
+  message: string;
+  action?: { label: string; href: string };
+}
+
 interface AppContextType {
   goals: Goal[];
   setGoals: React.Dispatch<React.SetStateAction<Goal[]>>;
@@ -102,6 +111,9 @@ interface AppContextType {
   avatar: string | null;
   setAvatar: React.Dispatch<React.SetStateAction<string | null>>;
   dataLoaded: boolean;
+  toast: Toast | null;
+  showToast: (t: Toast) => void;
+  dismissToast: () => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -114,6 +126,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [plan, setPlan] = useState<DayPlan[] | null>(null);
   const [avatar, setAvatar] = useState<string | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [toast, setToast] = useState<Toast | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = (t: Toast) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(t);
+    toastTimer.current = setTimeout(() => setToast(null), 8000);
+  };
+  const dismissToast = () => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(null);
+  };
 
   // Ref so flushToDb always has the latest getAccessTokenSilently without re-creating the function
   const getTokenRef = useRef(getAccessTokenSilently);
@@ -196,7 +220,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { queueSync({ avatar });   }, [avatar]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <AppContext.Provider value={{ goals, setGoals, schedule, setSchedule, plan, setPlan, avatar, setAvatar, dataLoaded }}>
+    <AppContext.Provider value={{ goals, setGoals, schedule, setSchedule, plan, setPlan, avatar, setAvatar, dataLoaded, toast, showToast, dismissToast }}>
       {children}
     </AppContext.Provider>
   );

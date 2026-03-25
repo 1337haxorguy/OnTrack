@@ -1,17 +1,23 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import type { DayPlan } from "../context/AppContext";
 import { useAuth0 } from "@auth0/auth0-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE;
 
+function toDateStr(d: Date) {
+  return d.toLocaleDateString("en-CA");
+}
+
 export default function GoalsOverview() {
-  const { goals, schedule, setPlan } = useApp();
+  const { goals, schedule, plan, setPlan, showToast } = useApp();
   const { isAuthenticated, getAccessTokenSilently } = useAuth0();
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const today = toDateStr(new Date());
+  const isPlanStale = !!plan && plan.length > 0 && plan.every(d => d.date < today);
 
   useEffect(() => { document.title = "OnTrack"; }, []);
 
@@ -42,7 +48,7 @@ export default function GoalsOverview() {
         time_blocks: day.time_blocks.map((b) => ({ ...b, id: crypto.randomUUID() })),
       }));
       setPlan(planWithIds);
-      navigate("/calendar");
+      showToast({ message: "Your plan is ready!", action: { label: "View calendar →", href: "/calendar" } });
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -92,6 +98,21 @@ export default function GoalsOverview() {
           </button>
         </div>
       </div>
+
+      {isPlanStale && (
+        <Link
+          to="/recap"
+          className="mb-4 flex items-center justify-between gap-3 p-3.5 rounded-lg border border-amber-700/50 bg-amber-900/20 text-amber-300 hover:bg-amber-900/30 transition-colors"
+        >
+          <div className="flex items-center gap-2.5">
+            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <span className="text-sm font-medium">Your plan is complete — review your week and generate a new one</span>
+          </div>
+          <span className="text-xs text-amber-400 shrink-0">Weekly Recap →</span>
+        </Link>
+      )}
 
       {error && (
         <div className="mb-4 p-3 rounded border border-red-700 bg-red-950/50 text-red-300 text-sm">

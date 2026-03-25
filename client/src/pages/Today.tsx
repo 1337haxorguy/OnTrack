@@ -245,6 +245,39 @@ export default function Today() {
     setTaskEdit(prev => { const n = { ...prev }; delete n[key]; return n; });
   };
 
+  const toggleTaskComplete = (bi: number, ti: number) => {
+    if (dayIdx < 0 || !todayPlan) return;
+    setPlan(prev => prev!.map((d, i) =>
+      i !== dayIdx ? d : {
+        ...d,
+        time_blocks: d.time_blocks.map((b, blockI) =>
+          blockI !== bi ? b : {
+            ...b,
+            tasks: b.tasks.map((t, taskI) =>
+              taskI !== ti ? t : { ...t, completed: !t.completed }
+            ),
+          }
+        ),
+      }
+    ));
+  };
+
+  const toggleBlockComplete = (bi: number) => {
+    if (dayIdx < 0 || !todayPlan) return;
+    const allDone = todayPlan.time_blocks[bi].tasks.every(t => t.completed);
+    setPlan(prev => prev!.map((d, i) =>
+      i !== dayIdx ? d : {
+        ...d,
+        time_blocks: d.time_blocks.map((b, blockI) =>
+          blockI !== bi ? b : {
+            ...b,
+            tasks: b.tasks.map(t => ({ ...t, completed: !allDone })),
+          }
+        ),
+      }
+    ));
+  };
+
   const saveFeedbackToGoal = () => {
     if (!pendingSave) return;
     setGoals(prev => prev.map(g =>
@@ -410,14 +443,29 @@ export default function Today() {
           </div>
 
           {/* Time blocks */}
-          {todayPlan.time_blocks.map((block, bi) => (
+          {todayPlan.time_blocks.map((block, bi) => {
+            const blockAllDone = block.tasks.length > 0 && block.tasks.every(t => t.completed);
+            const blockSomeDone = !blockAllDone && block.tasks.some(t => t.completed);
+            return (
             <div key={block.id ?? bi} className="rounded-xl border border-gray-800 bg-gray-900/40 overflow-hidden">
 
               {/* Block header */}
               <div className="px-4 py-3 border-b border-gray-800/60 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
-                  <span className="text-sm font-semibold text-white truncate">{block.label}</span>
+                  <button
+                    onClick={() => toggleBlockComplete(bi)}
+                    className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                      blockAllDone ? "bg-emerald-600 border-emerald-600" : blockSomeDone ? "border-indigo-500 bg-indigo-900/40" : "border-gray-600 hover:border-gray-400"
+                    }`}
+                  >
+                    {blockAllDone && (
+                      <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 8" fill="none">
+                        <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                    {blockSomeDone && <div className="w-1.5 h-0.5 bg-indigo-400 rounded-full" />}
+                  </button>
+                  <span className={`text-sm font-semibold truncate ${blockAllDone ? "text-gray-500 line-through" : "text-white"}`}>{block.label}</span>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   {block.start_time && block.end_time && (
@@ -482,9 +530,21 @@ export default function Today() {
                       {/* Task row */}
                       {!isEditing && (
                         <div className="px-4 py-3.5 flex gap-3 items-start">
+                          <button
+                            onClick={() => toggleTaskComplete(bi, ti)}
+                            className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                              task.completed ? "bg-emerald-600 border-emerald-600" : "border-gray-600 hover:border-gray-400"
+                            }`}
+                          >
+                            {task.completed && (
+                              <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 8" fill="none">
+                                <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            )}
+                          </button>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-200 mb-1">{task.title}</p>
-                            <p className="text-xs text-gray-500 leading-relaxed">{task.description}</p>
+                            <p className={`text-sm font-medium mb-1 ${task.completed ? "text-gray-500 line-through" : "text-gray-200"}`}>{task.title}</p>
+                            <p className={`text-xs leading-relaxed ${task.completed ? "text-gray-600 line-through" : "text-gray-500"}`}>{task.description}</p>
                           </div>
                           <div className="flex items-center gap-2 shrink-0 mt-0.5">
                             <span className="text-xs text-gray-600 tabular-nums whitespace-nowrap">{task.estimated_minutes}m</span>
@@ -596,7 +656,8 @@ export default function Today() {
                 </span>
               </div>
             </div>
-          ))}
+            );
+          })}
 
           {/* Day total */}
           <div className="flex justify-end pt-1">
