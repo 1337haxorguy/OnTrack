@@ -748,7 +748,7 @@ Restrictions: ${restrictions?.length > 0 ? restrictions.join(", ") : "none"}
 Requests: ${requests?.length > 0 ? requests.join(", ") : "none"}
 Additional Context: ${additional_context || "none"}
 
-Return a JSON array of up to 5 question strings. Return [] if no questions are needed.`;
+Return a JSON object with a "questions" array of up to 5 question objects. Return an empty array if no questions are needed.`;
 
   try {
     const completion = await openai.chat.completions.create({
