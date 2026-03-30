@@ -35,6 +35,13 @@ struct RootView: View {
     @ViewBuilder
     private var mainContent: some View {
         Group {
+            #if DEBUG
+            if appState.readyForMainApp {
+                tabView
+            } else {
+                LandingView()
+            }
+            #else
             if auth.isLoading {
                 loadingView
             } else if !auth.isAuthenticated {
@@ -44,6 +51,7 @@ struct RootView: View {
             } else {
                 tabView
             }
+            #endif
         }
         .overlay(alignment: .bottom) {
             if let toast = appState.toast {

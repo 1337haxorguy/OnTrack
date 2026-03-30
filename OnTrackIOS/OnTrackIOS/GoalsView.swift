@@ -3,11 +3,11 @@ import SwiftUI
 struct GoalsView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var auth: AuthManager
+    @StateObject private var flowState = OnboardingFlowState()
     @State private var generating = false
     @State private var generateError = ""
     @State private var regenGoalId: String? = nil
     @State private var regenError: String? = nil
-    @State private var showCreateGoal = false
 
     private var today: String {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: Date())
@@ -33,15 +33,16 @@ struct GoalsView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { showCreateGoal = true } label: {
+                    Button { appState.showingOnboarding = true } label: {
                         Image(systemName: "plus")
                     }
                 }
             }
-            .sheet(isPresented: $showCreateGoal) {
+            .sheet(isPresented: $appState.showingOnboarding) {
                 NavigationStack {
                     GoalCreationView()
                 }
+                .environmentObject(flowState)
             }
         }
     }
@@ -66,7 +67,7 @@ struct GoalsView: View {
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
-            Button { showCreateGoal = true } label: {
+            Button { appState.showingOnboarding = true } label: {
                 Text("Create your first goal")
                     .font(.subheadline.weight(.semibold))
                     .padding(.horizontal, 24)

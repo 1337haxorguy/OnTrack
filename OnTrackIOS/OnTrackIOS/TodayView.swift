@@ -4,12 +4,13 @@ struct TodayView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var auth: AuthManager
 
+    @State private var showRegenSheet = false
+    @State private var regenFeedback = ""
+    @State private var regenLoading = false
+    @State private var regenError = ""
+
     private var today: String {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: Date())
-    }
-
-    private var todayLabel: String {
-        Date().formatted(.dateTime.weekday(.wide).month(.wide).day())
     }
 
     private var todayPlan: DayPlan? {
@@ -27,6 +28,26 @@ struct TodayView: View {
             }
             .navigationTitle("Today")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                if todayPlan != nil {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { showRegenSheet = true } label: {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                        .disabled(regenLoading)
+                    }
+                }
+            }
+            .sheet(isPresented: $showRegenSheet) {
+                RegenSheet(
+                    title: "Regenerate today",
+                    feedback: $regenFeedback,
+                    isLoading: regenLoading,
+                    error: regenError,
+                    onConfirm: { Task { await regenToday() } },
+                    onCancel: { showRegenSheet = false; regenFeedback = ""; regenError = "" }
+                )
+            }
         }
     }
 
@@ -63,12 +84,10 @@ struct TodayView: View {
 
     private var freeDayEmpty: some View {
         let nextDay = appState.plan?.first { $0.date > today }
-        let nextLabel = nextDay.map {
+        let nextLabel = nextDay.map { d -> String in
             let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
-            if let d = f.date(from: $0.date) {
-                return d.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
-            }
-            return $0.date
+            guard let date = f.date(from: d.date) else { return d.date }
+            return date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
         }
         return VStack(spacing: 16) {
             ZStack {
@@ -115,6 +134,35 @@ struct TodayView: View {
             .padding(16)
         }
     }
+
+    // MARK: - Regen today
+
+    private func regenToday() async {
+        regenLoading = true; regenError = ""
+        let plan = todayPlan
+        do {
+            let token = await auth.getToken()
+            var newDay = try await APIService.regenerateDay(
+                date: today,
+                goals: appState.goals,
+                schedule: appState.schedule,
+                feedback: regenFeedback.isEmpty ? nil : regenFeedback,
+                currentPlan: plan,
+                token: token
+            )
+            newDay.time_blocks = newDay.time_blocks.map { var b = $0; b.id = UUID().uuidString; return b }
+            if let idx = appState.plan?.firstIndex(where: { $0.date == today }) {
+                appState.plan![idx] = newDay
+            } else {
+                appState.plan = (appState.plan ?? []) + [newDay]
+            }
+            if let token { appState.queueSync(token: token) }
+            regenFeedback = ""; regenError = ""; showRegenSheet = false
+        } catch {
+            regenError = "Failed to regenerate. Try again."
+        }
+        regenLoading = false
+    }
 }
 
 // MARK: - Block card
@@ -127,49 +175,66 @@ struct TodayBlockCard: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var auth: AuthManager
     @State private var expanded = true
+    @State private var showRegenSheet = false
+    @State private var regenFeedback = ""
+    @State private var regenLoading = false
+    @State private var regenError = ""
 
     private var allDone: Bool { block.tasks.allSatisfy { $0.completed == true } }
     private var someDone: Bool { !allDone && block.tasks.contains { $0.completed == true } }
+    private var date: String { appState.plan?[dayIndex].date ?? "" }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header
-            Button {
-                withAnimation(.spring(duration: 0.25)) { expanded.toggle() }
-            } label: {
-                HStack(spacing: 10) {
-                    // Block checkbox
-                    Button { toggleBlock() } label: {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(allDone ? Color.indigo : Color.white.opacity(0.2), lineWidth: 1.5)
-                                .frame(width: 22, height: 22)
-                            if allDone {
-                                Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundColor(.indigo)
-                            } else if someDone {
-                                Rectangle().fill(Color.indigo.opacity(0.5)).frame(width: 10, height: 2)
+            // Header: checkbox | expand area | menu
+            HStack(spacing: 10) {
+                Button { toggleBlock() } label: {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(allDone ? Color.indigo : Color.white.opacity(0.2), lineWidth: 1.5)
+                            .frame(width: 22, height: 22)
+                        if allDone {
+                            Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundColor(.indigo)
+                        } else if someDone {
+                            Rectangle().fill(Color.indigo.opacity(0.5)).frame(width: 10, height: 2)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+
+                Button { withAnimation(.spring(duration: 0.25)) { expanded.toggle() } } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(block.label)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundColor(allDone ? .gray : .white)
+                                .strikethrough(allDone)
+                            if let start = block.start_time, let end = block.end_time {
+                                Text("\(formatTime(start)) – \(formatTime(end))")
+                                    .font(.caption).foregroundColor(.gray)
                             }
                         }
+                        Spacer()
+                        Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                            .font(.caption).foregroundColor(.gray)
                     }
-                    .buttonStyle(.plain)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(block.label)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(allDone ? .gray : .white)
-                            .strikethrough(allDone)
-                        if let start = block.start_time, let end = block.end_time {
-                            Text("\(formatTime(start)) – \(formatTime(end))")
-                                .font(.caption).foregroundColor(.gray)
-                        }
-                    }
-                    Spacer()
-                    Image(systemName: expanded ? "chevron.up" : "chevron.down")
-                        .font(.caption).foregroundColor(.gray)
                 }
-                .padding(14)
+                .buttonStyle(.plain)
+
+                Menu {
+                    Button {
+                        showRegenSheet = true
+                    } label: {
+                        Label("Regenerate block", systemImage: "arrow.clockwise")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 15))
+                        .foregroundColor(.gray)
+                        .frame(width: 28, height: 28)
+                }
             }
-            .buttonStyle(.plain)
+            .padding(14)
 
             // Tasks
             if expanded {
@@ -185,21 +250,52 @@ struct TodayBlockCard: View {
         .background(Color.white.opacity(0.04))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.08), lineWidth: 1))
         .cornerRadius(14)
+        .sheet(isPresented: $showRegenSheet) {
+            RegenSheet(
+                title: "Regenerate \"\(block.label)\"",
+                feedback: $regenFeedback,
+                isLoading: regenLoading,
+                error: regenError,
+                onConfirm: { Task { await regenBlock() } },
+                onCancel: { showRegenSheet = false; regenFeedback = ""; regenError = "" }
+            )
+        }
     }
 
     private func toggleBlock() {
-        guard appState.plan != nil else { return }
+        guard appState.plan != nil, dayIndex < appState.plan!.count else { return }
         let allCurrentlyDone = block.tasks.allSatisfy { $0.completed == true }
         appState.plan![dayIndex].time_blocks[blockIndex].tasks = block.tasks.map {
             var t = $0; t.completed = !allCurrentlyDone; return t
         }
-        syncPlan()
+        Task { if let token = await auth.getToken() { appState.queueSync(token: token) } }
     }
 
-    private func syncPlan() {
-        Task {
-            if let token = await auth.getToken() { appState.queueSync(token: token) }
+    private func regenBlock() async {
+        regenLoading = true; regenError = ""
+        let currentPlan = appState.plan?[dayIndex]
+        let feedback = regenFeedback.isEmpty
+            ? "Regenerate the \"\(block.label)\" block with fresh content."
+            : "For the \"\(block.label)\" block: \(regenFeedback)"
+        do {
+            let token = await auth.getToken()
+            var newDay = try await APIService.regenerateDay(
+                date: date,
+                goals: appState.goals,
+                schedule: appState.schedule,
+                feedback: feedback,
+                currentPlan: currentPlan,
+                token: token
+            )
+            newDay.time_blocks = newDay.time_blocks.map { var b = $0; b.id = UUID().uuidString; return b }
+            guard appState.plan != nil, dayIndex < appState.plan!.count else { return }
+            appState.plan![dayIndex] = newDay
+            if let token { appState.queueSync(token: token) }
+            regenFeedback = ""; regenError = ""; showRegenSheet = false
+        } catch {
+            regenError = "Failed to regenerate. Try again."
         }
+        regenLoading = false
     }
 }
 
@@ -214,6 +310,20 @@ struct TaskRow: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var auth: AuthManager
     @State private var showDesc = false
+    @State private var showEditSheet = false
+    @State private var showRegenSheet = false
+    @State private var editedTask: PlanTask
+    @State private var regenFeedback = ""
+    @State private var regenLoading = false
+    @State private var regenError = ""
+
+    init(task: PlanTask, blockIndex: Int, taskIndex: Int, dayIndex: Int) {
+        self.task = task
+        self.blockIndex = blockIndex
+        self.taskIndex = taskIndex
+        self.dayIndex = dayIndex
+        _editedTask = State(initialValue: task)
+    }
 
     private var isDone: Bool { task.completed == true }
 
@@ -249,6 +359,20 @@ struct TaskRow: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
+            .contentShape(Rectangle())
+            .contextMenu {
+                Button {
+                    editedTask = task
+                    showEditSheet = true
+                } label: {
+                    Label("Edit task", systemImage: "pencil")
+                }
+                Button {
+                    showRegenSheet = true
+                } label: {
+                    Label("Regenerate day", systemImage: "arrow.clockwise")
+                }
+            }
 
             if showDesc && !task.description.isEmpty {
                 Text(task.description)
@@ -258,12 +382,60 @@ struct TaskRow: View {
                     .padding(.bottom, 10)
             }
         }
+        .sheet(isPresented: $showEditSheet) {
+            EditTaskSheet(task: $editedTask) { saveEdit() }
+        }
+        .sheet(isPresented: $showRegenSheet) {
+            RegenSheet(
+                title: "Regenerate day",
+                feedback: $regenFeedback,
+                isLoading: regenLoading,
+                error: regenError,
+                onConfirm: { Task { await regenDay() } },
+                onCancel: { showRegenSheet = false; regenFeedback = ""; regenError = "" }
+            )
+        }
     }
 
     private func toggle() {
-        guard appState.plan != nil else { return }
+        guard appState.plan != nil, dayIndex < appState.plan!.count else { return }
         appState.plan![dayIndex].time_blocks[blockIndex].tasks[taskIndex].completed = !isDone
         Task { if let token = await auth.getToken() { appState.queueSync(token: token) } }
+    }
+
+    private func saveEdit() {
+        guard appState.plan != nil, dayIndex < appState.plan!.count else { return }
+        appState.plan![dayIndex].time_blocks[blockIndex].tasks[taskIndex] = editedTask
+        Task { if let token = await auth.getToken() { appState.queueSync(token: token) } }
+        showEditSheet = false
+    }
+
+    private func regenDay() async {
+        regenLoading = true; regenError = ""
+        let date = appState.plan?[dayIndex].date ?? ""
+        let currentPlan = appState.plan?[dayIndex]
+        let feedback = regenFeedback.isEmpty
+            ? "Replace the task \"\(task.title)\" with improved content."
+            : "For the task \"\(task.title)\": \(regenFeedback)"
+        do {
+            let token = await auth.getToken()
+            var newDay = try await APIService.regenerateDay(
+                date: date,
+                goals: appState.goals,
+                schedule: appState.schedule,
+                feedback: feedback,
+                currentPlan: currentPlan,
+                token: token
+            )
+            newDay.time_blocks = newDay.time_blocks.map { var b = $0; b.id = UUID().uuidString; return b }
+            guard appState.plan != nil, dayIndex < appState.plan!.count else { return }
+            appState.plan![dayIndex] = newDay
+            if let token { appState.queueSync(token: token) }
+            regenFeedback = ""; regenError = ""; showRegenSheet = false
+        } catch {
+            regenError = "Failed to regenerate. Try again."
+        }
+        regenLoading = false
     }
 }
 

@@ -156,3 +156,110 @@ struct OnboardingTextField: View {
         .cornerRadius(16)
     }
 }
+
+// MARK: - Regen Sheet
+// Dark half-sheet with optional feedback input for regenerating days/blocks/tasks.
+
+struct RegenSheet: View {
+    let title: String
+    @Binding var feedback: String
+    let isLoading: Bool
+    let error: String
+    let onConfirm: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color.black.ignoresSafeArea()
+                VStack(alignment: .leading, spacing: 20) {
+                    Text("Optionally describe what to change.")
+                        .font(.subheadline).foregroundColor(.gray)
+
+                    TextField("e.g. Make it harder, add a warmup...", text: $feedback, axis: .vertical)
+                        .font(.subheadline)
+                        .foregroundColor(.white)
+                        .lineLimit(3...6)
+                        .padding(12)
+                        .background(Color.white.opacity(0.06))
+                        .cornerRadius(10)
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.08), lineWidth: 1))
+
+                    if !error.isEmpty {
+                        Text(error).font(.caption).foregroundColor(.red)
+                    }
+
+                    Button {
+                        onConfirm()
+                    } label: {
+                        HStack(spacing: 8) {
+                            if isLoading { ProgressView().tint(.white).scaleEffect(0.8) }
+                            Text(isLoading ? "Regenerating…" : "Regenerate")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(isLoading ? Color.indigo.opacity(0.5) : Color.indigo)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                    }
+                    .disabled(isLoading)
+
+                    Spacer()
+                }
+                .padding(20)
+            }
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { onCancel() }.disabled(isLoading)
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+}
+
+// MARK: - Edit Task Sheet
+// Dark sheet for editing a task's title, description, and estimated minutes.
+
+struct EditTaskSheet: View {
+    @Binding var task: PlanTask
+    let onSave: () -> Void
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color.black.ignoresSafeArea()
+                Form {
+                    Section {
+                        TextField("Task title", text: $task.title)
+                            .foregroundColor(.white)
+                    } header: { Text("Title") }
+
+                    Section {
+                        TextEditor(text: $task.description)
+                            .foregroundColor(.white)
+                            .frame(minHeight: 80)
+                            .scrollContentBackground(.hidden)
+                    } header: { Text("Description") }
+
+                    Section {
+                        Stepper("\(task.estimated_minutes) min", value: $task.estimated_minutes, in: 5...240, step: 5)
+                            .foregroundColor(.white)
+                    } header: { Text("Estimated time") }
+                }
+                .scrollContentBackground(.hidden)
+            }
+            .navigationTitle("Edit task")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("Save") { onSave() } }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+}

@@ -12,6 +12,8 @@
 		5C59B0022F747E0F008420B0 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C59AEF02F747E0F008420B0 /* Models.swift */; };
 		5C59B0032F747E0F008420B0 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C59AEF12F747E0F008420B0 /* ContentView.swift */; };
 		5C59B0042F747E0F008420B0 /* OnTrackIOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C59AEF32F747E0F008420B0 /* OnTrackIOSApp.swift */; };
+		AA000001AA000001AA000001 /* HelloWorldView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000002AA000002AA000002 /* HelloWorldView.swift */; };
+		BB000001BB000001BB000001 /* SchedulePreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000002BB000002BB000002 /* SchedulePreviewView.swift */; };
 		5C59B0052F747E0F008420B0 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C59AEF62F747E0F008420B0 /* TodayView.swift */; };
 		5C59B0062F747E0F008420B0 /* CreateGoalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C59AEF72F747E0F008420B0 /* CreateGoalView.swift */; };
 		5C59B0072F747E0F008420B0 /* APIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C59AEF82F747E0F008420B0 /* APIService.swift */; };
@@ -66,6 +68,8 @@
 		5C59AEF72F747E0F008420B0 /* CreateGoalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CreateGoalView.swift; path = OnTrackIOS/CreateGoalView.swift; sourceTree = "<group>"; };
 		5C59AEF82F747E0F008420B0 /* APIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = APIService.swift; path = OnTrackIOS/APIService.swift; sourceTree = "<group>"; };
 		5C59AF012F747E0F008420B0 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Components.swift; path = OnTrackIOS/Components.swift; sourceTree = "<group>"; };
+		AA000002AA000002AA000002 /* HelloWorldView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HelloWorldView.swift; path = OnTrackIOS/HelloWorldView.swift; sourceTree = "<group>"; };
+		BB000002BB000002BB000002 /* SchedulePreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SchedulePreviewView.swift; path = OnTrackIOS/SchedulePreviewView.swift; sourceTree = "<group>"; };
 		5C59AF022F747E0F008420B0 /* GoalCreationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GoalCreationView.swift; path = OnTrackIOS/GoalCreationView.swift; sourceTree = "<group>"; };
 		5C59AF032F747E0F008420B0 /* GoalBlockersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GoalBlockersView.swift; path = OnTrackIOS/GoalBlockersView.swift; sourceTree = "<group>"; };
 		5C59AF042F747E0F008420B0 /* OnboardingFlowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OnboardingFlowState.swift; path = OnTrackIOS/OnboardingFlowState.swift; sourceTree = "<group>"; };
@@ -133,6 +137,8 @@
 				5C59AEF12F747E0F008420B0 /* ContentView.swift */,
 				5C59AEF72F747E0F008420B0 /* CreateGoalView.swift */,
 				5C59AF012F747E0F008420B0 /* Components.swift */,
+				AA000002AA000002AA000002 /* HelloWorldView.swift */,
+				BB000002BB000002BB000002 /* SchedulePreviewView.swift */,
 				5C59AF022F747E0F008420B0 /* GoalCreationView.swift */,
 				5C59AF032F747E0F008420B0 /* GoalBlockersView.swift */,
 				5C59AF042F747E0F008420B0 /* OnboardingFlowState.swift */,
@@ -336,6 +342,8 @@
 				5C59B00E2F747E0F008420B0 /* ScheduleView.swift in Sources */,
 				5C59B00F2F747E0F008420B0 /* RootView.swift in Sources */,
 				5C59B0122F747E0F008420B0 /* Components.swift in Sources */,
+				AA000001AA000001AA000001 /* HelloWorldView.swift in Sources */,
+				BB000001BB000001BB000001 /* SchedulePreviewView.swift in Sources */,
 				5C59B0132F747E0F008420B0 /* GoalCreationView.swift in Sources */,
 				5C59B0142F747E0F008420B0 /* GoalBlockersView.swift in Sources */,
 				5C59B0152F747E0F008420B0 /* OnboardingFlowState.swift in Sources */,

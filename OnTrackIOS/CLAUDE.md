@@ -366,3 +366,63 @@ card_novel   → offset(x: 0,   y: 79)   // front
 - **API**: All network calls go through `APIService` static methods. Base URL in `API_BASE` constant in `AppState.swift`.
 - **Navigation**: `RootView` is a state machine (loading/unauth/loading-data/tabs). Tabs are `TabView` with enum-typed selection. Modal flows use `.sheet`.
 - **Multi-step forms**: `@State private var step: Int` drives section visibility within a single view (see `CreateGoalView`).
+- **Sheet dismissal from deep NavigationStack**: Never use `@Published` flags + `onChange` chains or closure captures — SwiftUI struct copies silently no-op. The working pattern is to put the `isPresented` binding on `AppState` (a shared `@MainActor` singleton), then set it to `false` directly from anywhere. e.g. `appState.showingOnboarding = false` closes the sheet owned by `GoalsView`.
+- **Onboarding sheet**: `GoalsView` binds its sheet to `$appState.showingOnboarding`. `GeneratingView` closes it by setting `appState.showingOnboarding = false` directly.
+
+---
+
+## Adding a New Swift File to the Xcode Target
+
+**Every new `.swift` file must be manually registered in `OnTrackIOS.xcodeproj/project.pbxproj` or Xcode will throw "Cannot find X in scope" even though the file exists on disk.**
+
+Do all four edits in one pass. Use unique placeholder UUIDs (e.g. `AABBCCDD...`):
+
+### 1. PBXBuildFile section (near top of file)
+```
+AA000001AA000001AA000001 /* MyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000002AA000002AA000002 /* MyView.swift */; };
+```
+
+### 2. PBXFileReference section
+```
+AA000002AA000002AA000002 /* MyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MyView.swift; path = OnTrackIOS/MyView.swift; sourceTree = "<group>"; };
+```
+
+### 3. PBXGroup (the source files list, ~line 135)
+```
+AA000002AA000002AA000002 /* MyView.swift */,
+```
+
+### 4. PBXSourcesBuildPhase (the compile sources list, ~line 325)
+```
+AA000001AA000001AA000001 /* MyView.swift in Sources */,
+```
+
+Use `grep -n "SomeExistingFile" project.pbxproj` to find the exact line numbers for sections 3 and 4.
+
+---
+
+## SourceKit Diagnostics — False Positives
+
+SourceKit analyzes files **in isolation** and cannot resolve types defined in other files. This produces errors like:
+- `Cannot find type 'Goal' in scope`
+- `Cannot find 'APIService' in scope`
+- `Cannot infer contextual base in reference to member 'calendar'`
+
+**These are NOT real build errors.** If the app compiled and ran before your edit, ignore them. Only act on errors that appear in the Xcode build log (red banner, "Build Failed").
+
+Real errors to act on: missing memberwise inits after adding `init(from decoder:)`, `@MainActor` isolation violations, and genuine missing symbol errors confirmed by a failed build.
+
+---
+
+## Debug Mode
+
+`RootView` has a `#if DEBUG` block that bypasses auth and shows content directly:
+```swift
+#if DEBUG
+// put whatever view you want here to test it
+#else
+// normal auth gate
+#endif
+```
+
+`OnTrackIOSApp.swift` has a `loadMockData(into:)` function that pre-populates `AppState` with a mock goal and 3-day plan so all tabs show realistic content without hitting the API.

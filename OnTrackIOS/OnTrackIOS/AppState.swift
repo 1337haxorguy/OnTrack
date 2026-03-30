@@ -22,6 +22,8 @@ class AppState: ObservableObject {
     @Published var schedule: Schedule = defaultSchedule()
     @Published var plan: [DayPlan]? = nil
     @Published var dataLoaded = false
+    @Published var showingOnboarding = false
+    @Published var readyForMainApp = false
 
     // Toast
     @Published var toast: ToastMessage? = nil

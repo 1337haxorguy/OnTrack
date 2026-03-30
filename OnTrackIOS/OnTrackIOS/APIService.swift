@@ -5,6 +5,11 @@ struct APIService {
     // MARK: - Generate full plan
 
     static func generatePlan(goals: [Goal], schedule: Schedule, token: String?) async throws -> [DayPlan] {
+        let (_, days) = try await generatePlanWithRaw(goals: goals, schedule: schedule, token: token)
+        return days
+    }
+
+    static func generatePlanWithRaw(goals: [Goal], schedule: Schedule, token: String?) async throws -> (String, [DayPlan]) {
         let totalHours = goals.reduce(0.0) { $0 + $1.hours_per_week }
         let body: [String: Any] = [
             "goals": encodeToAny(goals),
@@ -12,8 +17,10 @@ struct APIService {
             "preferences": ["hours_per_week": totalHours, "sessions_per_day": 1]
         ]
         let data = try await post(path: "/api/generate", body: body, token: token)
+        let raw = String(data: data, encoding: .utf8) ?? "(non-utf8 data)"
+        print("[APIService] /api/generate raw response:\n\(raw)")
         let response = try JSONDecoder().decode(GenerateResponse.self, from: data)
-        return response.weekly_tasks.map { day in
+        let days = response.weekly_tasks.map { day in
             var d = day
             d.time_blocks = d.time_blocks.map { block in
                 var b = block
@@ -22,6 +29,7 @@ struct APIService {
             }
             return d
         }
+        return (raw, days)
     }
 
     // MARK: - Regenerate single goal
@@ -113,7 +121,7 @@ struct APIService {
             throw URLError(.badURL)
         }
         let isAI = path.contains("generate")
-        var req = URLRequest(url: url, timeoutInterval: isAI ? 90 : 20)
+        var req = URLRequest(url: url, timeoutInterval: isAI ? 180 : 20)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }

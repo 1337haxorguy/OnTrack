@@ -4,6 +4,7 @@ struct GoalCreationView: View {
     @EnvironmentObject var auth: AuthManager
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var flowState: OnboardingFlowState
+    @Environment(\.dismiss) var dismiss
     var onBack: () -> Void = {}
 
     @State private var goalText = ""
@@ -94,7 +95,7 @@ struct GoalCreationView: View {
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button("cancel") { onBack() }
+                Button("cancel") { dismiss() }
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(.black.opacity(0.4))
             }

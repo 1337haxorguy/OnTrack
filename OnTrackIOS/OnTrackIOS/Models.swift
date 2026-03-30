@@ -84,6 +84,21 @@ struct TimeBlock: Codable, Identifiable, Equatable {
     var start_time: String?
     var end_time: String?
     var tasks: [PlanTask]
+
+    init(id: String, goal_id: String? = nil, label: String, start_time: String? = nil, end_time: String? = nil, tasks: [PlanTask]) {
+        self.id = id; self.goal_id = goal_id; self.label = label
+        self.start_time = start_time; self.end_time = end_time; self.tasks = tasks
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
+        goal_id = try? c.decode(String.self, forKey: .goal_id)
+        label = try c.decode(String.self, forKey: .label)
+        start_time = try? c.decode(String.self, forKey: .start_time)
+        end_time = try? c.decode(String.self, forKey: .end_time)
+        tasks = try c.decode([PlanTask].self, forKey: .tasks)
+    }
 }
 
 struct PlanTask: Codable, Equatable {

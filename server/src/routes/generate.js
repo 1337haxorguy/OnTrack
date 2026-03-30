@@ -506,6 +506,7 @@ CONSTRAINTS:
 - CRITICAL: Every time block MUST start and end within one of the listed windows for that date — no exceptions
 - Honor per-goal daily limits if specified
 - CRITICAL TIME CONSTRAINT: The SUM of every estimated_minutes value across ALL tasks in ALL days MUST NOT exceed ${hardMaxMinutes} minutes total. Do NOT go over ${hardMaxMinutes} minutes. Aim for approximately ${targetPerDay} minutes per day across ${days_per_week} days.
+- All estimated_minutes values MUST be multiples of 5 (e.g. 5, 10, 15, 20, 25, 30). Never use odd numbers like 34 or 17.
 - Each day should have 1–${maxBlocksPerDay} time block(s)
 - CRITICAL: Each time block must contain tasks for ONLY ONE goal. Never mix tasks from different goals in the same block. If multiple goals are scheduled on the same day, give each goal its own separate block.
 - CRITICAL: Never schedule passive or non-actionable activities as time blocks. This includes rest days, active recovery, stretching cooldowns, "take it easy" days, hydration reminders, or any block whose sole purpose is to not do something. If a goal requires rest on a given day, simply do not schedule that goal on that day — omit it entirely rather than filling the slot with a placeholder.

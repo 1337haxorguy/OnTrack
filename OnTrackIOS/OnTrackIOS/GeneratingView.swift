@@ -7,6 +7,8 @@ struct GeneratingView: View {
 
     @State private var cardOffset: CGFloat = 0
     @State private var failed = false
+    @State private var errorDetail: String? = nil
+    @State private var showPreview = false
 
     var body: some View {
         ZStack {
@@ -46,19 +48,50 @@ struct GeneratingView: View {
                 }
 
                 if failed {
-                    Text("Something went wrong.\nYou can try again from the Goals tab.")
-                        .font(.system(size: 22, weight: .medium))
-                        .tracking(-0.66)
-                        .foregroundColor(.white.opacity(0.85))
-                        .multilineTextAlignment(.center)
-                        .frame(width: 309)
+                    VStack(spacing: 16) {
+                        Text("Something went wrong.")
+                            .font(.system(size: 28, weight: .bold))
+                            .tracking(-0.84)
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                        if let detail = errorDetail {
+                            Text(detail)
+                                .font(.system(size: 13, design: .monospaced))
+                                .foregroundColor(.white.opacity(0.5))
+                                .multilineTextAlignment(.leading)
+                        }
+                        Text("Your goal was saved. You can generate your plan from the Goals tab.")
+                            .font(.system(size: 16, weight: .medium))
+                            .tracking(-0.48)
+                            .foregroundColor(.white.opacity(0.65))
+                            .multilineTextAlignment(.center)
+                        Button {
+                            appState.showingOnboarding = false
+                        } label: {
+                            Text("Go to Goals")
+                                .font(.subheadline.weight(.semibold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(Color.white)
+                                .foregroundColor(.black)
+                                .cornerRadius(12)
+                        }
+                        .padding(.top, 4)
+                    }
+                    .frame(width: 309)
                 } else {
-                    Text("generating your\nschedule...")
-                        .font(.system(size: 40, weight: .bold))
-                        .tracking(-1.2)
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.center)
-                        .frame(width: 309)
+                    VStack(spacing: 10) {
+                        Text("generating your\nschedule...")
+                            .font(.system(size: 40, weight: .bold))
+                            .tracking(-1.2)
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                        Text("this may take up to a minute")
+                            .font(.system(size: 16, weight: .medium))
+                            .tracking(-0.48)
+                            .foregroundColor(.white.opacity(0.5))
+                    }
+                    .frame(width: 309)
                 }
             }
             .padding(.horizontal, 24)
@@ -68,6 +101,9 @@ struct GeneratingView: View {
             Task { await buildGoalAndGenerate() }
         }
         .navigationBarBackButtonHidden(true)
+        .navigationDestination(isPresented: $showPreview) {
+            SchedulePreviewView()
+        }
     }
 
     // MARK: - White preview card
@@ -107,7 +143,7 @@ struct GeneratingView: View {
 
     // MARK: - Build goal + generate
 
-    private func buildGoalAndGenerate() async {
+    @MainActor private func buildGoalAndGenerate() async {
         let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd"
         let today = df.string(from: Date())
         let endDate = df.string(from: Calendar.current.date(byAdding: .month, value: 1, to: Date())!)
@@ -140,17 +176,20 @@ struct GeneratingView: View {
 
         do {
             let token = await auth.getToken()
-            let newDays = try await APIService.generatePlan(
+            let (raw, newDays) = try await APIService.generatePlanWithRaw(
                 goals: [goal],
                 schedule: appState.schedule,
                 token: token
             )
+            print("[GeneratingView] Raw response:\n\(raw)")
             appState.plan = attributeBlocks(plan: newDays, goals: appState.goals)
             if let token { appState.queueSync(token: token) }
-            flowState.shouldDismissOnboarding = true
+            showPreview = true
         } catch {
-            appState.goals.removeAll { $0.id == goal.id }
+            print("[GeneratingView] Plan generation failed: \(error)")
+            errorDetail = error.localizedDescription
             failed = true
         }
     }
 }
+

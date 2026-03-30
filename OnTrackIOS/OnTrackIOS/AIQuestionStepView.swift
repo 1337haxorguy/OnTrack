@@ -64,7 +64,7 @@ struct AIQuestionStepView: View {
                             scaleInput
                                 .opacity(appeared ? 1 : 0)
                         case .boolean:
-                            choiceList(options: ["Yes", "No"])
+                            singleChoiceList(options: ["Yes", "No"])
                                 .opacity(appeared ? 1 : 0)
                         case .multiple_choice, .multi_select:
                             choiceList(options: question.options ?? [])
@@ -156,6 +156,22 @@ struct AIQuestionStepView: View {
                 Text("very much")
                     .font(.system(size: 12))
                     .foregroundColor(Color(red: 179/255, green: 179/255, blue: 179/255))
+            }
+        }
+    }
+
+    // MARK: - Single-select choice list (boolean / multiple_choice)
+
+    @ViewBuilder
+    private func singleChoiceList(options: [String]) -> some View {
+        VStack(spacing: 20) {
+            ForEach(options, id: \.self) { option in
+                MultipleChoiceRow(
+                    label: option,
+                    selected: answer == option
+                ) {
+                    setAnswer(option)
+                }
             }
         }
     }

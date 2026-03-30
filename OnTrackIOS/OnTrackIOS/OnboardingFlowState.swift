@@ -1,5 +1,9 @@
 import SwiftUI
 
+extension Notification.Name {
+    static let onboardingComplete = Notification.Name("onboardingComplete")
+}
+
 @MainActor
 class OnboardingFlowState: ObservableObject {
     @Published var goalText = ""
@@ -7,7 +11,6 @@ class OnboardingFlowState: ObservableObject {
     @Published var answers: [String] = []
     @Published var isLoading = false
     @Published var loadFailed = false
-    @Published var shouldDismissOnboarding = false
 
     private var fetchTask: Task<Void, Never>?
 

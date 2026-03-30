@@ -6,6 +6,7 @@ struct ScheduleView: View {
 
     @State private var showAddRecurring = false
     @State private var showAddSpecific = false
+    @State private var showTimezonePicker = false
     @State private var showLogoutConfirm = false
 
     private let days = ALL_DAYS
@@ -28,6 +29,12 @@ struct ScheduleView: View {
             .navigationBarTitleDisplayMode(.large)
             .sheet(isPresented: $showAddRecurring) { AddRecurringBlockView() }
             .sheet(isPresented: $showAddSpecific) { AddSpecificBlockView() }
+            .sheet(isPresented: $showTimezonePicker) {
+                TimezonePickerView(selected: appState.schedule.timezone) { tz in
+                    appState.schedule.timezone = tz
+                    Task { if let token = await auth.getToken() { appState.queueSync(token: token) } }
+                }
+            }
             .confirmationDialog("Sign out of OnTrack?", isPresented: $showLogoutConfirm, titleVisibility: .visible) {
                 Button("Sign Out", role: .destructive) {
                     Task { await auth.logout() }
@@ -60,11 +67,15 @@ struct ScheduleView: View {
 
     private var timezoneCard: some View {
         sectionCard(title: "Timezone") {
-            HStack {
-                Image(systemName: "globe").foregroundColor(.gray)
-                Text(appState.schedule.timezone).font(.subheadline).foregroundColor(.white)
-                Spacer()
+            Button { showTimezonePicker = true } label: {
+                HStack {
+                    Image(systemName: "globe").foregroundColor(.gray)
+                    Text(appState.schedule.timezone).font(.subheadline).foregroundColor(.white)
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.caption2).foregroundColor(.gray)
+                }
             }
+            .buttonStyle(.plain)
         }
     }
 
@@ -391,6 +402,52 @@ struct AddSpecificBlockView: View {
         appState.schedule.specific_blocks.append(block)
         Task { if let token = await auth.getToken() { appState.queueSync(token: token) } }
         dismiss()
+    }
+}
+
+// MARK: - Timezone picker
+
+struct TimezonePickerView: View {
+    let selected: String
+    let onSelect: (String) -> Void
+
+    @State private var search = ""
+    @Environment(\.dismiss) var dismiss
+
+    private var filtered: [String] {
+        let all = TimeZone.knownTimeZoneIdentifiers
+        return search.isEmpty ? all : all.filter { $0.localizedCaseInsensitiveContains(search) }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack { Color.black.ignoresSafeArea()
+                List {
+                    ForEach(filtered, id: \.self) { tz in
+                        Button {
+                            onSelect(tz)
+                            dismiss()
+                        } label: {
+                            HStack {
+                                Text(tz).font(.subheadline).foregroundColor(.white)
+                                Spacer()
+                                if tz == selected {
+                                    Image(systemName: "checkmark").foregroundColor(.indigo)
+                                }
+                            }
+                        }
+                        .listRowBackground(Color.white.opacity(0.04))
+                    }
+                }
+                .listStyle(.plain)
+                .searchable(text: $search, prompt: "Search timezones")
+            }
+            .navigationTitle("Timezone")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+            }
+        }
     }
 }
 
