@@ -49,7 +49,7 @@ class AppState: ObservableObject {
 
     func loadUserData(token: String) async {
         guard let url = URL(string: "\(API_BASE)/api/user-data") else { return }
-        var req = URLRequest(url: url, timeoutInterval: 15)
+        var req = URLRequest(url: url, timeoutInterval: 60)
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         do {
             let (data, _) = try await URLSession.shared.data(for: req)

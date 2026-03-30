@@ -24,6 +24,13 @@
 		5C59B00E2F747E0F008420B0 /* ScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C59AEFF2F747E0F008420B0 /* ScheduleView.swift */; };
 		5C59B00F2F747E0F008420B0 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C59AF002F747E0F008420B0 /* RootView.swift */; };
 		5C59B0102F747E0F008420B0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5C59AEF52F747E0F008420B0 /* Assets.xcassets */; };
+		5C59B0122F747E0F008420B0 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C59AF012F747E0F008420B0 /* Components.swift */; };
+		5C59B0132F747E0F008420B0 /* GoalCreationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C59AF022F747E0F008420B0 /* GoalCreationView.swift */; };
+		5C59B0142F747E0F008420B0 /* GoalBlockersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C59AF032F747E0F008420B0 /* GoalBlockersView.swift */; };
+		5C59B0152F747E0F008420B0 /* OnboardingFlowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C59AF042F747E0F008420B0 /* OnboardingFlowState.swift */; };
+		5C59B0162F747E0F008420B0 /* AIQuestionStepView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C59AF052F747E0F008420B0 /* AIQuestionStepView.swift */; };
+		5C59B0172F747E0F008420B0 /* GoalScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C59AF062F747E0F008420B0 /* GoalScheduleView.swift */; };
+		5C59B0182F747E0F008420B0 /* GeneratingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C59AF072F747E0F008420B0 /* GeneratingView.swift */; };
 		5C59B0112F747E0F008420B0 /* Auth0.plist in Resources */ = {isa = PBXBuildFile; fileRef = 5C59AEF22F747E0F008420B0 /* Auth0.plist */; };
 /* End PBXBuildFile section */
 
@@ -58,6 +65,13 @@
 		5C59AEF62F747E0F008420B0 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TodayView.swift; path = OnTrackIOS/TodayView.swift; sourceTree = "<group>"; };
 		5C59AEF72F747E0F008420B0 /* CreateGoalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CreateGoalView.swift; path = OnTrackIOS/CreateGoalView.swift; sourceTree = "<group>"; };
 		5C59AEF82F747E0F008420B0 /* APIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = APIService.swift; path = OnTrackIOS/APIService.swift; sourceTree = "<group>"; };
+		5C59AF012F747E0F008420B0 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Components.swift; path = OnTrackIOS/Components.swift; sourceTree = "<group>"; };
+		5C59AF022F747E0F008420B0 /* GoalCreationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GoalCreationView.swift; path = OnTrackIOS/GoalCreationView.swift; sourceTree = "<group>"; };
+		5C59AF032F747E0F008420B0 /* GoalBlockersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GoalBlockersView.swift; path = OnTrackIOS/GoalBlockersView.swift; sourceTree = "<group>"; };
+		5C59AF042F747E0F008420B0 /* OnboardingFlowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OnboardingFlowState.swift; path = OnTrackIOS/OnboardingFlowState.swift; sourceTree = "<group>"; };
+		5C59AF052F747E0F008420B0 /* AIQuestionStepView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AIQuestionStepView.swift; path = OnTrackIOS/AIQuestionStepView.swift; sourceTree = "<group>"; };
+		5C59AF062F747E0F008420B0 /* GoalScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GoalScheduleView.swift; path = OnTrackIOS/GoalScheduleView.swift; sourceTree = "<group>"; };
+		5C59AF072F747E0F008420B0 /* GeneratingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GeneratingView.swift; path = OnTrackIOS/GeneratingView.swift; sourceTree = "<group>"; };
 		5C59AEF92F747E0F008420B0 /* RecapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RecapView.swift; path = OnTrackIOS/RecapView.swift; sourceTree = "<group>"; };
 		5C59AEFA2F747E0F008420B0 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ToastView.swift; path = OnTrackIOS/ToastView.swift; sourceTree = "<group>"; };
 		5C59AEFB2F747E0F008420B0 /* LandingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LandingView.swift; path = OnTrackIOS/LandingView.swift; sourceTree = "<group>"; };
@@ -118,6 +132,13 @@
 				5C59AEFC2F747E0F008420B0 /* CalendarView.swift */,
 				5C59AEF12F747E0F008420B0 /* ContentView.swift */,
 				5C59AEF72F747E0F008420B0 /* CreateGoalView.swift */,
+				5C59AF012F747E0F008420B0 /* Components.swift */,
+				5C59AF022F747E0F008420B0 /* GoalCreationView.swift */,
+				5C59AF032F747E0F008420B0 /* GoalBlockersView.swift */,
+				5C59AF042F747E0F008420B0 /* OnboardingFlowState.swift */,
+				5C59AF052F747E0F008420B0 /* AIQuestionStepView.swift */,
+				5C59AF062F747E0F008420B0 /* GoalScheduleView.swift */,
+				5C59AF072F747E0F008420B0 /* GeneratingView.swift */,
 				5C59AEFE2F747E0F008420B0 /* GoalsView.swift */,
 				5C59AEF42F747E0F008420B0 /* Info.plist */,
 				5C59AEFB2F747E0F008420B0 /* LandingView.swift */,
@@ -314,6 +335,13 @@
 				5C59B00D2F747E0F008420B0 /* GoalsView.swift in Sources */,
 				5C59B00E2F747E0F008420B0 /* ScheduleView.swift in Sources */,
 				5C59B00F2F747E0F008420B0 /* RootView.swift in Sources */,
+				5C59B0122F747E0F008420B0 /* Components.swift in Sources */,
+				5C59B0132F747E0F008420B0 /* GoalCreationView.swift in Sources */,
+				5C59B0142F747E0F008420B0 /* GoalBlockersView.swift in Sources */,
+				5C59B0152F747E0F008420B0 /* OnboardingFlowState.swift in Sources */,
+				5C59B0162F747E0F008420B0 /* AIQuestionStepView.swift in Sources */,
+				5C59B0172F747E0F008420B0 /* GoalScheduleView.swift in Sources */,
+				5C59B0182F747E0F008420B0 /* GeneratingView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

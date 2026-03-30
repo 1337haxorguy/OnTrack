@@ -4,10 +4,36 @@ struct RootView: View {
     @EnvironmentObject var auth: AuthManager
     @EnvironmentObject var appState: AppState
     @State private var selectedTab: Tab = .goals
+    @State private var splashDone = false
+
+    private var screenSize: CGSize { UIScreen.main.bounds.size }
 
     enum Tab { case goals, today, calendar, recap, schedule }
 
     var body: some View {
+        ZStack {
+            mainContent
+
+            if !splashDone {
+                splashView
+                    .transition(.opacity)
+                    .zIndex(1)
+            }
+        }
+        .onAppear {
+            Task {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                withAnimation(.easeInOut(duration: 0.6)) {
+                    splashDone = true
+                }
+            }
+        }
+    }
+
+    // MARK: - Main content (post-splash)
+
+    @ViewBuilder
+    private var mainContent: some View {
         Group {
             if auth.isLoading {
                 loadingView
@@ -41,6 +67,39 @@ struct RootView: View {
         }
     }
 
+    // MARK: - Splash screen
+
+    private var splashView: some View {
+        ZStack {
+            Image("splash_bg")
+                .resizable()
+                .scaledToFill()
+                .frame(width: screenSize.width, height: screenSize.height)
+                .clipped()
+
+            Image("splash_overlay")
+                .resizable()
+                .scaledToFill()
+                .frame(width: screenSize.width, height: screenSize.height)
+                .clipped()
+        }
+        .ignoresSafeArea()
+    }
+
+    // MARK: - Loading screen
+
+    private var loadingView: some View {
+        Color(red: 251/255, green: 250/255, blue: 247/255)
+            .ignoresSafeArea()
+            .overlay(
+                ProgressView()
+                    .tint(Color(red: 0.2, green: 0.2, blue: 0.2))
+                    .scaleEffect(1.2)
+            )
+    }
+
+    // MARK: - Tab view
+
     private var tabView: some View {
         TabView(selection: $selectedTab) {
             GoalsView()
@@ -62,15 +121,6 @@ struct RootView: View {
             ScheduleView()
                 .tabItem { Label("Schedule", systemImage: "clock") }
                 .tag(Tab.schedule)
-        }
-    }
-
-    private var loadingView: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            ProgressView()
-                .tint(.indigo)
-                .scaleEffect(1.5)
         }
     }
 }

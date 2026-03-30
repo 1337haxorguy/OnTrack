@@ -39,7 +39,9 @@ struct GoalsView: View {
                 }
             }
             .sheet(isPresented: $showCreateGoal) {
-                CreateGoalView()
+                NavigationStack {
+                    GoalCreationView()
+                }
             }
         }
     }

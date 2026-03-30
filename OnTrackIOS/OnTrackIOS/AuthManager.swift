@@ -25,11 +25,12 @@ class AuthManager: ObservableObject {
         do {
             let credentials = try await credentialsManager.credentials()
             apply(credentials)
+            isLoading = false
             await AppState.shared.loadUserData(token: credentials.accessToken)
         } catch {
             isAuthenticated = false
+            isLoading = false
         }
-        isLoading = false
     }
 
     // MARK: - Login
