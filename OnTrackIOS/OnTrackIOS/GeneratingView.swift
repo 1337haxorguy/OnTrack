@@ -9,6 +9,13 @@ struct GeneratingView: View {
     @State private var failed = false
     @State private var errorDetail: String? = nil
     @State private var showPreview = false
+    @State private var loadingPhraseIndex = 0
+
+    private let loadingPhrases = [
+        "generating your\nschedule...",
+        "crafting your\nweekly plan...",
+        "getting you\non track..."
+    ]
 
     var body: some View {
         ZStack {
@@ -81,11 +88,14 @@ struct GeneratingView: View {
                     .frame(width: 309)
                 } else {
                     VStack(spacing: 10) {
-                        Text("generating your\nschedule...")
+                        Text(loadingPhrases[loadingPhraseIndex])
                             .font(.system(size: 40, weight: .bold))
                             .tracking(-1.2)
                             .foregroundColor(.white)
                             .multilineTextAlignment(.center)
+                            .id(loadingPhraseIndex)
+                            .transition(.opacity)
+                            .animation(.easeInOut(duration: 0.5), value: loadingPhraseIndex)
                         Text("this may take up to a minute")
                             .font(.system(size: 16, weight: .medium))
                             .tracking(-0.48)
@@ -99,6 +109,12 @@ struct GeneratingView: View {
         .onAppear {
             DispatchQueue.main.async { cardOffset = -14 }
             Task { await buildGoalAndGenerate() }
+            Task {
+                while !failed && !showPreview {
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    withAnimation { loadingPhraseIndex = (loadingPhraseIndex + 1) % loadingPhrases.count }
+                }
+            }
         }
         .navigationBarBackButtonHidden(true)
         .navigationDestination(isPresented: $showPreview) {

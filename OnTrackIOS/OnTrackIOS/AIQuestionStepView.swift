@@ -38,7 +38,7 @@ struct AIQuestionStepView: View {
         }
     }
 
-    private var totalSteps: Int { flowState.questions.count + 3 }
+    private var totalSteps: Int { 8 }
     private var stepNumber: Int { index + 4 }
 
     var body: some View {
@@ -82,16 +82,19 @@ struct AIQuestionStepView: View {
                 }
 
                 VStack(spacing: 12) {
-                    PrimaryButton(label: "continue") {
+                    let isLast = index + 1 >= flowState.questions.count
+                    PrimaryButton(label: isLast ? "make my plan" : "continue") {
                         navigateNext = true
                     }
 
-                    Button("skip") {
-                        navigateNext = true
+                    if !isLast {
+                        Button("skip") {
+                            navigateNext = true
+                        }
+                        .font(.system(size: 20))
+                        .tracking(-0.6)
+                        .foregroundColor(Color(red: 179/255, green: 179/255, blue: 179/255))
                     }
-                    .font(.system(size: 20))
-                    .tracking(-0.6)
-                    .foregroundColor(Color(red: 179/255, green: 179/255, blue: 179/255))
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 48)

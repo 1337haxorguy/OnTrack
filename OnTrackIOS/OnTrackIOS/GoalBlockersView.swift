@@ -23,7 +23,7 @@ struct GoalBlockersView: View {
             cream.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                StepProgressBar(steps: 6, current: 2)
+                StepProgressBar(steps: 8, current: 2)
                     .padding(.horizontal, 24)
                     .padding(.top, 32)
                     .padding(.bottom, 40)

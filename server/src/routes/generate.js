@@ -727,8 +727,13 @@ For each question, decide:
    - "scale": a 1–5 intensity/comfort rating (e.g. "How comfortable are you with X?")
    - "open_ended": free-text, for questions that can't be meaningfully bucketed (e.g. specific injuries, deadlines, personal context).
 
-Choose the most natural type for each question. Prefer structured types (boolean, multiple_choice, multi_select) over open_ended when the answer space is predictable.
+Strongly prefer multiple_choice for most questions — it is the easiest for users to answer quickly. Only use open_ended when the answer genuinely cannot be captured by a list of options. Use boolean only for true yes/no questions. Use multi_select only when multiple answers are equally valid. Use scale sparingly.
 For multiple_choice and multi_select, options must be short (1–4 words each) and mutually distinct.
+
+TONE AND STYLE:
+- Write every question in lowercase (e.g. "what's your current level?" not "What's your current level?")
+- Start each question with a relevant emoji (e.g. "🎯 what's your main focus?", "⏰ when do you usually practice?")
+- Keep questions short, friendly, and conversational — like a coach asking, not a form
 
 Return a JSON object with a "questions" array.
 If no additional questions are needed, return an empty array for "questions".`;

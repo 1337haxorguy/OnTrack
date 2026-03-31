@@ -24,12 +24,12 @@ struct SchedulePreviewView: View {
 
             VStack(spacing: 0) {
                 ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 28) {
+                    VStack(alignment: .leading, spacing: 24) {
 
                         // Header
                         VStack(alignment: .leading, spacing: 10) {
                             Text(goalTitle.lowercased())
-                                .font(.system(size: 15, weight: .semibold))
+                                .font(.system(size: 16, weight: .semibold))
                                 .tracking(-0.3)
                                 .foregroundColor(.black.opacity(0.35))
                                 .padding(.horizontal, 14)
@@ -38,8 +38,8 @@ struct SchedulePreviewView: View {
                                 .cornerRadius(20)
 
                             Text("your plan\nis ready.")
-                                .font(.system(size: 42, weight: .bold))
-                                .tracking(-1.26)
+                                .font(.system(size: 52, weight: .bold))
+                                .tracking(-1.56)
                                 .foregroundColor(.black)
                         }
                         .opacity(headerVisible ? 1 : 0)
@@ -55,7 +55,7 @@ struct SchedulePreviewView: View {
                         .offset(y: statsVisible ? 0 : 8)
 
                         // Day cards
-                        VStack(spacing: 12) {
+                        VStack(spacing: 14) {
                             ForEach(Array(plan.enumerated()), id: \.offset) { i, day in
                                 DayPreviewCard(day: day)
                                     .opacity(cardsVisible.indices.contains(i) && cardsVisible[i] ? 1 : 0)
@@ -63,8 +63,8 @@ struct SchedulePreviewView: View {
                             }
                         }
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.top, 52)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 24)
                     .padding(.bottom, 32)
                 }
 
@@ -114,18 +114,18 @@ private struct StatChip: View {
     let label: String
 
     var body: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 3) {
             Text(value)
-                .font(.system(size: 22, weight: .bold))
-                .tracking(-0.66)
+                .font(.system(size: 28, weight: .bold))
+                .tracking(-0.84)
                 .foregroundColor(.black)
             Text(label)
-                .font(.system(size: 12, weight: .medium))
-                .tracking(-0.24)
+                .font(.system(size: 13, weight: .medium))
+                .tracking(-0.26)
                 .foregroundColor(.black.opacity(0.4))
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
+        .padding(.vertical, 18)
         .background(Color(red: 241/255, green: 241/255, blue: 241/255))
         .cornerRadius(16)
     }
@@ -161,59 +161,96 @@ private struct DayPreviewCard: View {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 8) {
                         Text(formattedDate.weekday)
-                            .font(.system(size: 17, weight: .semibold))
-                            .tracking(-0.51)
+                            .font(.system(size: 20, weight: .semibold))
+                            .tracking(-0.6)
                             .foregroundColor(.black)
                         if isToday {
                             Text("today")
-                                .font(.system(size: 11, weight: .semibold))
-                                .tracking(-0.22)
+                                .font(.system(size: 12, weight: .semibold))
+                                .tracking(-0.24)
                                 .foregroundColor(.white)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
+                                .padding(.horizontal, 9)
+                                .padding(.vertical, 4)
                                 .background(Color.black)
                                 .cornerRadius(20)
                         }
                     }
                     Text(formattedDate.date)
-                        .font(.system(size: 13, weight: .regular))
-                        .tracking(-0.26)
+                        .font(.system(size: 14, weight: .regular))
+                        .tracking(-0.28)
                         .foregroundColor(.black.opacity(0.35))
                 }
                 Spacer()
                 Text("\(totalMins) min")
-                    .font(.system(size: 13, weight: .medium))
-                    .tracking(-0.26)
+                    .font(.system(size: 14, weight: .medium))
+                    .tracking(-0.28)
                     .foregroundColor(.black.opacity(0.35))
             }
 
             // Blocks
             VStack(spacing: 6) {
                 ForEach(day.time_blocks) { block in
-                    HStack(spacing: 10) {
-                        // Dot accent
-                        Circle()
-                            .fill(Color.black.opacity(0.15))
-                            .frame(width: 6, height: 6)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 10) {
+                            // Dot accent
+                            Circle()
+                                .fill(Color.black.opacity(0.15))
+                                .frame(width: 7, height: 7)
 
-                        Text(block.label)
-                            .font(.system(size: 14, weight: .medium))
-                            .tracking(-0.28)
-                            .foregroundColor(.black)
+                            Text(block.label)
+                                .font(.system(size: 15, weight: .semibold))
+                                .tracking(-0.3)
+                                .foregroundColor(.black)
 
-                        Spacer()
+                            Spacer()
 
-                        if let start = block.start_time, let end = block.end_time {
-                            Text("\(formatTime(start)) – \(formatTime(end))")
-                                .font(.system(size: 12, weight: .regular))
-                                .tracking(-0.24)
-                                .foregroundColor(.black.opacity(0.35))
+                            if let start = block.start_time, let end = block.end_time {
+                                Text("\(formatTime(start)) – \(formatTime(end))")
+                                    .font(.system(size: 13, weight: .regular))
+                                    .tracking(-0.26)
+                                    .foregroundColor(.black.opacity(0.35))
+                            }
+                        }
+
+                        if !block.tasks.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                ForEach(block.tasks, id: \.title) { task in
+                                    HStack(alignment: .top, spacing: 8) {
+                                        Circle()
+                                            .fill(Color.black.opacity(0.12))
+                                            .frame(width: 4, height: 4)
+                                            .padding(.top, 5)
+
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            HStack {
+                                                Text(task.title)
+                                                    .font(.system(size: 13, weight: .semibold))
+                                                    .tracking(-0.26)
+                                                    .foregroundColor(.black.opacity(0.7))
+                                                Spacer()
+                                                Text("\(task.estimated_minutes)m")
+                                                    .font(.system(size: 12))
+                                                    .foregroundColor(.black.opacity(0.28))
+                                            }
+                                            if !task.description.isEmpty {
+                                                Text(task.description)
+                                                    .font(.system(size: 12, weight: .regular))
+                                                    .tracking(-0.24)
+                                                    .foregroundColor(.black.opacity(0.42))
+                                                    .fixedSize(horizontal: false, vertical: true)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(.leading, 14)
+                            .padding(.top, 2)
                         }
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 9)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
                     .background(Color.white.opacity(isToday ? 0.9 : 0.55))
-                    .cornerRadius(10)
+                    .cornerRadius(12)
                 }
             }
         }
