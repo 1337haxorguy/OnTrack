@@ -74,6 +74,7 @@ struct APIService {
     struct FollowupResponse: Codable {
         struct Question: Codable {
             var question: String
+            var emoji: String?
             var mandatory: Bool
             var type: String
             var options: [String]?
@@ -94,6 +95,7 @@ struct APIService {
         return response.questions.map { q in
             FollowupQuestion(
                 question: q.question,
+                emoji: q.emoji,
                 user_response: "",
                 type: FollowupQuestion.QuestionType(rawValue: q.type),
                 options: q.options?.isEmpty == false ? q.options : nil

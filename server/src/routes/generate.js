@@ -732,8 +732,8 @@ For multiple_choice and multi_select, options must be short (1–4 words each) a
 
 TONE AND STYLE:
 - Write every question in lowercase (e.g. "what's your current level?" not "What's your current level?")
-- Start each question with a relevant emoji (e.g. "🎯 what's your main focus?", "⏰ when do you usually practice?")
 - Keep questions short, friendly, and conversational — like a coach asking, not a form
+- Each question must include a single relevant emoji in the "emoji" field (e.g. "🎯", "⏰", "💪") — do NOT embed the emoji in the question text itself
 
 Return a JSON object with a "questions" array.
 If no additional questions are needed, return an empty array for "questions".`;
@@ -777,11 +777,12 @@ Return a JSON object with a "questions" array of up to 5 question objects. Retur
                   type: "object",
                   properties: {
                     question: { type: "string" },
+                    emoji: { type: "string" },
                     mandatory: { type: "boolean" },
                     type: { type: "string", enum: ["open_ended", "boolean", "multiple_choice", "multi_select", "scale"] },
                     options: { type: "array", items: { type: "string" } },
                   },
-                  required: ["question", "mandatory", "type", "options"],
+                  required: ["question", "emoji", "mandatory", "type", "options"],
                   additionalProperties: false,
                 },
                 description: "List of follow-up questions (up to 5)",

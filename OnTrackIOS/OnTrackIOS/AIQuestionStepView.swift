@@ -53,11 +53,18 @@ struct AIQuestionStepView: View {
 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 40) {
-                        Text(question.question)
-                            .font(.system(size: 32, weight: .semibold))
-                            .tracking(-0.96)
-                            .foregroundColor(.black)
-                            .opacity(appeared ? 1 : 0)
+                        VStack(alignment: .leading, spacing: 14) {
+                            if let emoji = question.emoji {
+                                Text(emoji)
+                                    .font(.system(size: 52))
+                                    .opacity(appeared ? 1 : 0)
+                            }
+                            Text(question.question)
+                                .font(.system(size: 32, weight: .semibold))
+                                .tracking(-0.96)
+                                .foregroundColor(.black)
+                                .opacity(appeared ? 1 : 0)
+                        }
 
                         switch question.type {
                         case .scale:

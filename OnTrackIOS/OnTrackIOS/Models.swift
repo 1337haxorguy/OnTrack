@@ -28,6 +28,7 @@ struct Timeframe: Codable, Equatable {
 
 struct FollowupQuestion: Codable, Equatable {
     var question: String
+    var emoji: String?
     var user_response: String
     var type: QuestionType?
     var options: [String]?

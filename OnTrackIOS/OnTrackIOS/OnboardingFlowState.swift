@@ -34,6 +34,7 @@ class OnboardingFlowState: ObservableObject {
                 guard !Task.isCancelled else { return }
                 let finalQuestion = FollowupQuestion(
                     question: "is there anything else you want us to know?",
+                    emoji: "💬",
                     user_response: "",
                     type: .open_ended,
                     options: nil
