@@ -1,270 +1,302 @@
+import { useState, useRef } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
+import { useNavigate } from "react-router-dom";
 
-// ---- Mock week plan for the visual preview ----
-const PREVIEW_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
-
-interface PreviewBlock {
-  label: string;
-  sub: string;
-  topPct: number;
-  heightPct: number;
-  color: "indigo" | "violet" | "emerald";
-}
-
-const PREVIEW_COLUMNS: PreviewBlock[][] = [
-  // Mon
-  [{ label: "Guitar", sub: "Chord patterns", topPct: 12, heightPct: 22, color: "indigo" }],
-  // Tue
-  [{ label: "Run", sub: "Easy 3 km", topPct: 5, heightPct: 18, color: "emerald" }],
-  // Wed
-  [
-    { label: "Guitar", sub: "Fingerstyle", topPct: 14, heightPct: 22, color: "indigo" },
-    { label: "Spanish", sub: "Vocab review", topPct: 55, heightPct: 16, color: "violet" },
-  ],
-  // Thu
-  [{ label: "Run", sub: "Intervals", topPct: 8, heightPct: 20, color: "emerald" }],
-  // Fri
-  [
-    { label: "Guitar", sub: "Song practice", topPct: 10, heightPct: 22, color: "indigo" },
-    { label: "Spanish", sub: "Listening", topPct: 50, heightPct: 16, color: "violet" },
-  ],
-];
-
-const COLOR_MAP = {
-  indigo:  { block: "bg-indigo-600/80 border-indigo-500/60",  label: "text-indigo-100", sub: "text-indigo-300/80" },
-  violet:  { block: "bg-violet-600/80 border-violet-500/60",  label: "text-violet-100", sub: "text-violet-300/80" },
-  emerald: { block: "bg-emerald-700/80 border-emerald-600/60", label: "text-emerald-100", sub: "text-emerald-300/80" },
-};
+// ── Slide mock-UIs (light theme to match cream bg) ────────────────────────────
 
 function PlanPreview() {
+  const blocks = [
+    {
+      time: "7:00 AM", label: "Guitar Practice",
+      bgCls: "bg-violet-50 border-violet-200",
+      dotCls: "border-violet-300",
+      labelCls: "text-violet-800",
+      taskCls: "text-violet-600",
+      timeCls: "text-violet-400",
+      tasks: ["Chord transitions · 20 min", "Fingerpicking pattern · 15 min"],
+    },
+    {
+      time: "12:30 PM", label: "Spanish Listening",
+      bgCls: "bg-emerald-50 border-emerald-200",
+      dotCls: "border-emerald-300",
+      labelCls: "text-emerald-800",
+      taskCls: "text-emerald-600",
+      timeCls: "text-emerald-400",
+      tasks: ["Podcast episode · 25 min"],
+    },
+    {
+      time: "6:00 PM", label: "Evening Run",
+      bgCls: "bg-orange-50 border-orange-200",
+      dotCls: "border-orange-300",
+      labelCls: "text-orange-800",
+      taskCls: "text-orange-600",
+      timeCls: "text-orange-400",
+      tasks: ["Easy 3km · 30 min", "Cool-down stretches · 10 min"],
+    },
+  ];
   return (
-    <div className="w-full max-w-xl mx-auto rounded-xl border border-gray-700/60 bg-gray-900/80 overflow-hidden shadow-2xl shadow-black/40">
-      {/* Toolbar */}
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-700/60 bg-gray-900">
-        <div className="flex gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-gray-700" />
-          <div className="w-2.5 h-2.5 rounded-full bg-gray-700" />
-          <div className="w-2.5 h-2.5 rounded-full bg-gray-700" />
-        </div>
-        <div className="flex-1 flex items-center justify-center">
-          <span className="text-xs text-gray-500 font-medium">Week of Mar 24 – Mar 28</span>
-        </div>
-        <div className="px-2 py-0.5 text-[10px] rounded border border-indigo-600/40 bg-indigo-600/10 text-indigo-400 font-medium">
-          Week
-        </div>
+    <div className="w-full max-w-xs mx-auto">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[10px] font-semibold text-black/30 uppercase tracking-widest">Today · Monday</span>
+        <span className="text-[10px] text-black/20">Apr 14</span>
       </div>
-
-      {/* Day headers */}
-      <div className="grid border-b border-gray-700/60 bg-gray-900/60" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr" }}>
-        {PREVIEW_DAYS.map((d, i) => (
-          <div key={d} className={`py-2 text-center ${i > 0 ? "border-l border-gray-700/40" : ""}`}>
-            <div className="text-[9px] uppercase tracking-widest text-gray-500 font-semibold">{d}</div>
-            <div className={`mx-auto mt-0.5 w-6 h-6 flex items-center justify-center rounded-full text-sm font-bold ${i === 0 ? "bg-indigo-600 text-white" : "text-gray-500"}`}>
-              {24 + i}
+      <div className="flex flex-col gap-2.5">
+        {blocks.map((b) => (
+          <div key={b.label} className={`rounded-xl border p-3 ${b.bgCls}`}>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className={`text-xs font-semibold ${b.labelCls}`}>{b.label}</span>
+              <span className={`text-[10px] ${b.timeCls}`}>{b.time}</span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              {b.tasks.map((t) => (
+                <div key={t} className="flex items-center gap-1.5">
+                  <div className={`w-3 h-3 rounded-full border shrink-0 ${b.dotCls}`} />
+                  <span className={`text-[11px] ${b.taskCls}`}>{t}</span>
+                </div>
+              ))}
             </div>
           </div>
         ))}
-      </div>
-
-      {/* Grid body */}
-      <div className="grid relative" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", height: "200px" }}>
-        {/* Hour lines */}
-        {[0, 25, 50, 75].map((pct) => (
-          <div
-            key={pct}
-            className="absolute left-0 right-0 border-t border-gray-800/60 pointer-events-none"
-            style={{ top: `${pct}%` }}
-          />
-        ))}
-
-        {PREVIEW_COLUMNS.map((blocks, ci) => (
-          <div key={ci} className={`relative ${ci > 0 ? "border-l border-gray-700/40" : ""}`}>
-            {blocks.map((b, bi) => {
-              const c = COLOR_MAP[b.color];
-              return (
-                <div
-                  key={bi}
-                  className={`absolute inset-x-1 rounded border ${c.block} px-1.5 py-1 overflow-hidden`}
-                  style={{ top: `${b.topPct}%`, height: `${b.heightPct}%` }}
-                >
-                  <div className={`text-[10px] font-semibold leading-tight ${c.label}`}>{b.label}</div>
-                  <div className={`text-[9px] leading-tight mt-0.5 ${c.sub}`}>{b.sub}</div>
-                </div>
-              );
-            })}
-          </div>
-        ))}
-      </div>
-
-      {/* Footer caption */}
-      <div className="px-4 py-2 border-t border-gray-800/60 bg-gray-900/60 flex items-center gap-3">
-        <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-sm bg-indigo-500/80" />
-          <span className="text-[10px] text-gray-500">Guitar</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-sm bg-emerald-600/80" />
-          <span className="text-[10px] text-gray-500">Running</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-sm bg-violet-600/80" />
-          <span className="text-[10px] text-gray-500">Spanish</span>
-        </div>
-        <span className="ml-auto text-[10px] text-gray-600">AI-generated · updates as you go</span>
       </div>
     </div>
   );
 }
 
-// ---- How it works steps ----
-const STEPS = [
-  {
-    n: "1",
-    title: "Add your goals",
-    description: "Tell OnTrack what you want to achieve and how much time you have. Guitar, running, a language — anything.",
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-  },
-  {
-    n: "2",
-    title: "Set your schedule",
-    description: "Mark when you're free and block out recurring commitments. OnTrack fits around your life, not the other way around.",
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-      </svg>
-    ),
-  },
-  {
-    n: "3",
-    title: "Follow your plan",
-    description: "Get a personalised week of timed sessions and specific tasks. Regenerate any day that isn't working for you.",
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
-      </svg>
-    ),
-  },
-];
-
-// ---- Main component ----
-export default function Landing() {
-  const { loginWithRedirect } = useAuth0();
-
+function GoalsPreview() {
+  const goals = [
+    { emoji: "🎸", title: "Learn guitar",   tags: ["Intermediate", "4 hrs/wk", "Mon, Wed, Fri"] },
+    { emoji: "🇪🇸", title: "Learn Spanish",  tags: ["Beginner", "3 hrs/wk", "Tue, Thu"]         },
+    { emoji: "🏃", title: "Run a 5K",       tags: ["Beginner", "3 hrs/wk", "Weekends"]          },
+  ];
   return (
-    <div className="flex flex-col items-center px-4 py-16 min-h-[calc(100vh-56px)]">
-
-      {/* ---- Hero ---- */}
-      <div className="flex flex-col items-center text-center relative w-full max-w-2xl">
-        {/* Glow behind headline */}
-        <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-64 pointer-events-none"
-          style={{
-            background: "radial-gradient(ellipse at center, rgba(99,102,241,0.15) 0%, transparent 70%)",
-          }}
-        />
-
-        {/* Badge */}
-        <div className="relative mb-6 inline-flex items-center gap-2 px-3 py-1 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 text-xs font-medium tracking-wide">
-          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
-          AI-powered planning
+    <div className="w-full max-w-xs mx-auto flex flex-col gap-2.5">
+      {goals.map((g) => (
+        <div key={g.title} className="rounded-xl border border-black/8 bg-white p-3.5 shadow-sm">
+          <div className="flex items-center gap-2.5 mb-2">
+            <span className="text-xl">{g.emoji}</span>
+            <span className="text-sm font-semibold text-black">{g.title}</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {g.tags.map((t) => (
+              <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-black/4 border border-black/8 text-black/40">
+                {t}
+              </span>
+            ))}
+          </div>
         </div>
+      ))}
+    </div>
+  );
+}
 
-        {/* Headline */}
-        <h1 className="relative text-4xl sm:text-5xl font-bold tracking-tight text-white leading-tight mb-5">
-          Your goals,{" "}
-          <span className="text-indigo-400">your pace.</span>
-        </h1>
-
-        {/* Subtext */}
-        <p className="relative text-gray-400 text-lg max-w-md mb-3 leading-relaxed">
-          OnTrack turns your goals into a realistic week-by-week plan — built around your schedule, your constraints, and your level.
-        </p>
-
-        {/* Quick trust signals */}
-        <div className="flex items-center gap-4 text-xs text-gray-600 mb-10">
-          <span className="flex items-center gap-1">
-            <svg className="w-3.5 h-3.5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
-            Free to use
-          </span>
-          <span className="flex items-center gap-1">
-            <svg className="w-3.5 h-3.5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
-            Set up in 2 minutes
-          </span>
-          <span className="flex items-center gap-1">
-            <svg className="w-3.5 h-3.5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
-            Multiple goals at once
-          </span>
+function QuestionsPreview() {
+  const questions = [
+    { q: "Do you have access to a guitar right now?",  a: "Yes, acoustic at home"   },
+    { q: "Any wrist or finger injuries to be aware of?", a: "No injuries"           },
+    { q: "What style are you most excited to learn?",  a: "Fingerstyle / acoustic"  },
+  ];
+  return (
+    <div className="w-full max-w-xs mx-auto flex flex-col gap-3">
+      {questions.map((item, i) => (
+        <div key={i} className="flex flex-col gap-1.5">
+          <div className="self-start max-w-[80%] rounded-2xl rounded-tl-sm px-3.5 py-2.5 bg-white border border-black/8 shadow-sm">
+            <p className="text-xs text-black/60 leading-relaxed">{item.q}</p>
+          </div>
+          <div className="self-end max-w-[75%] rounded-2xl rounded-tr-sm px-3.5 py-2.5 bg-black">
+            <p className="text-xs text-white leading-relaxed">{item.a}</p>
+          </div>
         </div>
+      ))}
+    </div>
+  );
+}
 
-        {/* CTAs */}
-        <div className="flex flex-col sm:flex-row items-center gap-3 mb-4">
-          <button
-            onClick={() => loginWithRedirect()}
-            className="px-7 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-base transition-colors shadow-lg shadow-indigo-600/25"
-          >
-            Get started — it&apos;s free
-          </button>
-          <button
-            onClick={() => loginWithRedirect()}
-            className="px-7 py-3 border border-gray-700 hover:border-gray-500 text-gray-300 hover:text-white font-medium rounded-lg text-base transition-colors"
-          >
-            Log in
-          </button>
-        </div>
-      </div>
-
-      {/* ---- Plan preview ---- */}
-      <div className="w-full max-w-2xl mt-14">
-        <p className="text-center text-xs text-gray-600 mb-4 uppercase tracking-widest font-medium">
-          Your week — intelligently planned
-        </p>
-        <PlanPreview />
-      </div>
-
-      {/* ---- How it works ---- */}
-      <div className="w-full max-w-2xl mt-20">
-        <h2 className="text-center text-base font-semibold text-white mb-10">How it works</h2>
-
-        <div className="relative grid grid-cols-1 sm:grid-cols-3 gap-8">
-          {/* Connecting line (desktop only) */}
-          <div className="hidden sm:block absolute top-6 left-[calc(16.67%+12px)] right-[calc(16.67%+12px)] h-px bg-gray-800 pointer-events-none" />
-
-          {STEPS.map((step) => (
-            <div key={step.n} className="flex flex-col items-center sm:items-start text-center sm:text-left gap-3 relative">
-              <div className="w-12 h-12 rounded-xl border border-gray-700 bg-gray-900 flex items-center justify-center text-indigo-400 shrink-0 relative z-10">
-                {step.icon}
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-widest text-gray-600 font-medium mb-1">Step {step.n}</div>
-                <h3 className="text-sm font-semibold text-white mb-1">{step.title}</h3>
-                <p className="text-xs text-gray-500 leading-relaxed">{step.description}</p>
-              </div>
+function SchedulePreview() {
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const free  = new Set(["Mon", "Wed", "Fri", "Sat"]);
+  const blocked = [
+    { label: "Work",      time: "9 AM – 5 PM"  },
+    { label: "Gym class", time: "Tue, Thu · 6 PM" },
+  ];
+  return (
+    <div className="w-full max-w-xs mx-auto flex flex-col gap-4">
+      <div>
+        <p className="text-[10px] text-black/30 uppercase tracking-widest mb-2 font-medium">Free days for goals</p>
+        <div className="flex gap-1.5">
+          {days.map((d) => (
+            <div
+              key={d}
+              className={`flex-1 py-2 rounded-lg flex items-center justify-center text-[10px] font-semibold ${
+                free.has(d)
+                  ? "bg-black text-white"
+                  : "bg-white border border-black/8 text-black/25"
+              }`}
+            >
+              {d[0]}
             </div>
           ))}
         </div>
       </div>
+      <div>
+        <p className="text-[10px] text-black/30 uppercase tracking-widest mb-2 font-medium">Blocked times (we skip these)</p>
+        <div className="flex flex-col gap-2">
+          {blocked.map((b) => (
+            <div key={b.label} className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-white border border-black/8 shadow-sm">
+              <span className="text-xs text-black/70 font-medium">{b.label}</span>
+              <span className="text-[10px] text-black/30">{b.time}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
-      {/* ---- Bottom CTA ---- */}
-      <div className="mt-20 flex flex-col items-center gap-4 text-center">
-        <p className="text-gray-400 text-sm">Ready to actually make progress?</p>
+// ── Slides config ─────────────────────────────────────────────────────────────
+
+const SLIDES = [
+  {
+    tag: "The result",
+    headline: "A real plan for your week.",
+    sub: "Not vague advice — specific sessions, exact times, tasks with estimated minutes, all built around your schedule.",
+    visual: <PlanPreview />,
+  },
+  {
+    tag: "Multiple goals",
+    headline: "Track everything at once.",
+    sub: "Guitar, running, a new language — add as many goals as you want. OnTrack keeps them from stepping on each other.",
+    visual: <GoalsPreview />,
+  },
+  {
+    tag: "It gets personal",
+    headline: "AI that asks the right questions.",
+    sub: "A quick back-and-forth to understand your starting point, constraints, and preferences. About 2 minutes per goal.",
+    visual: <QuestionsPreview />,
+  },
+  {
+    tag: "Your life stays intact",
+    headline: "Fits around your real schedule.",
+    sub: "Tell us your free time and regular commitments. We plan only inside the gaps — never against your calendar.",
+    visual: <SchedulePreview />,
+  },
+];
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export default function Landing() {
+  const { loginWithRedirect } = useAuth0();
+  const navigate = useNavigate();
+  const [slide, setSlide] = useState(0);
+  const touchStartX = useRef<number | null>(null);
+
+  const isLast = slide === SLIDES.length - 1;
+
+  const next = () => {
+    if (isLast) navigate("/goals/new");
+    else setSlide((s) => s + 1);
+  };
+
+  const prev = () => setSlide((s) => Math.max(0, s - 1));
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const delta = touchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(delta) > 40) {
+      if (delta > 0) next();
+      else prev();
+    }
+    touchStartX.current = null;
+  };
+
+  const current = SLIDES[slide];
+
+  return (
+    <div
+      className="min-h-screen bg-[#F9F9F9] text-black flex flex-col select-none"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* ── Header ── */}
+      <header className="flex items-center justify-between px-6 py-5 shrink-0">
+        <span className="text-sm font-bold tracking-tight text-black">OnTrack</span>
         <button
           onClick={() => loginWithRedirect()}
-          className="px-7 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-base transition-colors shadow-lg shadow-indigo-600/20"
+          className="px-4 py-2 text-sm font-semibold text-black border border-black/15 rounded-full bg-white hover:bg-black hover:text-white hover:border-black transition-colors shadow-sm"
         >
-          Create your first goal
+          Log in
         </button>
-      </div>
+      </header>
 
+      {/* ── Slide area ── */}
+      <main className="flex-1 flex flex-col px-6 pt-2 pb-8">
+
+        {/* Tag */}
+        <div className="flex justify-center mb-6">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-black/40 px-3 py-1 rounded-full bg-black/5 border border-black/8">
+            {current.tag}
+          </span>
+        </div>
+
+        {/* Visual mockup */}
+        <div className="mb-8">
+          {current.visual}
+        </div>
+
+        {/* Text */}
+        <div className="text-center mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold leading-tight tracking-tight mb-3 text-black">
+            {current.headline}
+          </h1>
+          <p className="text-sm text-black/40 leading-relaxed max-w-xs mx-auto">
+            {current.sub}
+          </p>
+        </div>
+
+        {/* Dot indicators */}
+        <div className="flex justify-center gap-1.5 mb-8">
+          {SLIDES.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setSlide(i)}
+              className={`h-1.5 rounded-full transition-all duration-200 ${
+                i === slide ? "w-6 bg-black" : "w-1.5 bg-black/15"
+              }`}
+            />
+          ))}
+        </div>
+
+        {/* Actions */}
+        <div className="flex flex-col gap-2.5 max-w-xs mx-auto w-full mt-auto">
+          <button
+            onClick={next}
+            className="w-full py-4 bg-black text-white rounded-full text-sm font-semibold hover:bg-black/80 transition-colors"
+          >
+            {isLast ? "Get started →" : "Next →"}
+          </button>
+
+          {!isLast && (
+            <button
+              onClick={() => navigate("/goals/new")}
+              className="w-full py-3 text-xs text-black/30 hover:text-black/60 transition-colors"
+            >
+              skip intro
+            </button>
+          )}
+
+          {isLast && (
+            <button
+              onClick={() => loginWithRedirect()}
+              className="w-full py-3 text-xs text-black/35 hover:text-black/60 transition-colors"
+            >
+              already have an account? log in
+            </button>
+          )}
+        </div>
+      </main>
     </div>
   );
 }

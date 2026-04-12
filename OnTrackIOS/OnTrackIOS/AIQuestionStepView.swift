@@ -38,7 +38,7 @@ struct AIQuestionStepView: View {
         }
     }
 
-    private var totalSteps: Int { 8 }
+    private var totalSteps: Int { 9 }
     private var stepNumber: Int { index + 4 }
 
     var body: some View {

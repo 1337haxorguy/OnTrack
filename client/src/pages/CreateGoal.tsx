@@ -50,15 +50,13 @@ const SKILL_LEVELS: Array<{ value: Goal["skill_level"]; label: string; desc: str
 ];
 
 const inputCls =
-  "px-3 py-2.5 border border-gray-700 rounded-lg bg-gray-900 text-white text-sm w-full " +
-  "focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 " +
-  "transition-colors placeholder:text-gray-600";
+  "px-3 py-3 border border-black/10 rounded-xl bg-white text-black text-sm w-full " +
+  "focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black/30 " +
+  "transition-colors placeholder:text-black/25";
 
-const cardCls = "rounded-xl border border-gray-800 bg-gray-900/40 p-5 flex flex-col gap-5";
-const fieldLabel = "text-xs font-medium text-gray-400";
-const fieldHint  = "text-xs text-gray-600 -mt-3";
-
-const STEP_LABELS = ["Your goal", "Time & schedule", "Personalise"];
+const cardCls = "rounded-2xl border border-black/8 bg-white p-5 flex flex-col gap-5 shadow-sm";
+const fieldLabel = "text-xs font-medium text-black/40";
+const fieldHint  = "text-xs text-black/25 -mt-3";
 
 // ---- Shared sub-components ----
 
@@ -72,10 +70,10 @@ function SkillLevelPicker({ value, onChange }: { value: Goal["skill_level"]; onC
             key={v}
             type="button"
             onClick={() => onChange(v)}
-            className={`flex flex-col items-start px-3 py-2.5 rounded-lg border text-left transition-all ${
+            className={`flex flex-col items-start px-3 py-2.5 rounded-xl border text-left transition-all ${
               value === v
-                ? "border-indigo-500 bg-indigo-600/15 text-white"
-                : "border-gray-700 bg-gray-900 text-gray-400 hover:border-gray-600 hover:text-gray-300"
+                ? "border-black bg-black text-white"
+                : "border-black/10 bg-white text-black/40 hover:border-black/25 hover:text-black/60"
             }`}
           >
             <span className="text-sm font-medium">{label}</span>
@@ -126,17 +124,17 @@ function TimeCommitmentSection({
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <label className={fieldLabel}>Hours per week</label>
-          <span className="text-sm font-semibold text-white tabular-nums">
+          <span className="text-sm font-semibold text-black tabular-nums">
             {form.hours_per_week} hr{form.hours_per_week !== 1 && "s"}
           </span>
         </div>
         <input
           type="range" min={1} max={20} step={1}
-          className="w-full accent-indigo-500 cursor-pointer h-1.5"
+          className="w-full accent-black cursor-pointer h-1.5"
           value={form.hours_per_week}
           onChange={(e) => patch({ hours_per_week: Number(e.target.value) })}
         />
-        <div className="flex justify-between text-xs text-gray-700">
+        <div className="flex justify-between text-xs text-black/25">
           <span>1 hr</span><span>20 hrs</span>
         </div>
       </div>
@@ -145,7 +143,7 @@ function TimeCommitmentSection({
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <label className={fieldLabel}>Preferred days</label>
-          <span className="text-xs text-gray-600">
+          <span className="text-xs text-black/30">
             {form.selected_days.length === 0 ? "AI decides" : `${form.selected_days.length} selected`}
           </span>
         </div>
@@ -160,8 +158,8 @@ function TimeCommitmentSection({
                 onClick={() => toggleDay(day)}
                 className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-all ${
                   active
-                    ? "bg-indigo-600 border-indigo-500 text-white"
-                    : "bg-gray-900 border-gray-700 text-gray-500 hover:border-gray-600 hover:text-gray-300"
+                    ? "bg-black border-black text-white"
+                    : "bg-white border-black/10 text-black/35 hover:border-black/25 hover:text-black/60"
                 }`}
               >
                 {abbr}
@@ -179,8 +177,8 @@ function TimeCommitmentSection({
             role="switch"
             aria-checked={form.has_daily_limit}
             onClick={() => patch({ has_daily_limit: !form.has_daily_limit })}
-            className={`relative w-9 h-5 rounded-full transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 ${
-              form.has_daily_limit ? "bg-indigo-600" : "bg-gray-700"
+            className={`relative w-9 h-5 rounded-full transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-black/10 ${
+              form.has_daily_limit ? "bg-black" : "bg-black/15"
             }`}
           >
             <span
@@ -189,17 +187,17 @@ function TimeCommitmentSection({
               }`}
             />
           </button>
-          <span className="text-sm text-gray-300">Daily time limit</span>
+          <span className="text-sm text-black/60">Daily time limit</span>
         </label>
         {form.has_daily_limit && (
           <div className="flex items-center gap-3 ml-12">
             <input
               type="number" min={15} max={480} step={15}
-              className="px-3 py-2 border border-gray-700 rounded-lg bg-gray-900 text-white text-sm w-24 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-colors"
+              className="px-3 py-2 border border-black/10 rounded-xl bg-white text-black text-sm w-24 focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black/30 transition-colors"
               value={form.daily_limit_minutes}
               onChange={(e) => patch({ daily_limit_minutes: Number(e.target.value) })}
             />
-            <span className="text-sm text-gray-500">minutes per day</span>
+            <span className="text-sm text-black/40">minutes per day</span>
           </div>
         )}
       </div>
@@ -237,10 +235,10 @@ function AdditionalContextSection({
         className="flex items-center justify-between w-full text-left group"
       >
         <div>
-          <h2 className="text-sm font-semibold text-white">
+          <h2 className="text-sm font-semibold text-black">
             Additional context
             {hasData && (
-              <span className="ml-2 text-xs font-normal text-indigo-400">
+              <span className="ml-2 text-xs font-normal text-black/40">
                 {[
                   form.restrictions.length > 0 && `${form.restrictions.length} restriction${form.restrictions.length !== 1 ? "s" : ""}`,
                   form.requests.length > 0 && `${form.requests.length} request${form.requests.length !== 1 ? "s" : ""}`,
@@ -249,9 +247,9 @@ function AdditionalContextSection({
               </span>
             )}
           </h2>
-          <p className="text-xs text-gray-500 mt-0.5">Injuries, noise limits, specific requests — optional</p>
+          <p className="text-xs text-black/40 mt-0.5">Injuries, noise limits, specific requests — optional</p>
         </div>
-        <span className={`text-gray-500 group-hover:text-gray-300 transition-all duration-200 ${open ? "rotate-180" : ""}`}>
+        <span className={`text-black/30 group-hover:text-black/60 transition-all duration-200 ${open ? "rotate-180" : ""}`}>
           <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
             <path fillRule="evenodd" clipRule="evenodd" d="M3.47 5.47a.75.75 0 0 1 1.06 0L8 8.94l3.47-3.47a.75.75 0 1 1 1.06 1.06l-4 4a.75.75 0 0 1-1.06 0l-4-4a.75.75 0 0 1 0-1.06z" />
           </svg>
@@ -267,11 +265,11 @@ function AdditionalContextSection({
             {form.restrictions.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {form.restrictions.map((r, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 text-xs bg-gray-800 border border-gray-700 rounded-full pl-3 pr-1.5 py-1 text-gray-300">
+                  <span key={i} className="inline-flex items-center gap-1 text-xs bg-black/5 border border-black/10 rounded-full pl-3 pr-1.5 py-1 text-black/60">
                     {r}
                     <button
                       onClick={() => patch({ restrictions: form.restrictions.filter((_, j) => j !== i) })}
-                      className="w-4 h-4 flex items-center justify-center rounded-full text-gray-500 hover:text-white hover:bg-gray-600 transition-colors"
+                      className="w-4 h-4 flex items-center justify-center rounded-full text-black/30 hover:text-black hover:bg-black/10 transition-colors"
                     >×</button>
                   </span>
                 ))}
@@ -288,7 +286,7 @@ function AdditionalContextSection({
               <button
                 onClick={addRestriction}
                 disabled={!newRestriction.trim()}
-                className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="px-3 py-2 bg-white border border-black/10 rounded-xl text-black text-sm hover:bg-black/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >Add</button>
             </div>
           </div>
@@ -300,11 +298,11 @@ function AdditionalContextSection({
             {form.requests.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {form.requests.map((r, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 text-xs bg-gray-800 border border-gray-700 rounded-full pl-3 pr-1.5 py-1 text-gray-300">
+                  <span key={i} className="inline-flex items-center gap-1 text-xs bg-black/5 border border-black/10 rounded-full pl-3 pr-1.5 py-1 text-black/60">
                     {r}
                     <button
                       onClick={() => patch({ requests: form.requests.filter((_, j) => j !== i) })}
-                      className="w-4 h-4 flex items-center justify-center rounded-full text-gray-500 hover:text-white hover:bg-gray-600 transition-colors"
+                      className="w-4 h-4 flex items-center justify-center rounded-full text-black/30 hover:text-black hover:bg-black/10 transition-colors"
                     >×</button>
                   </span>
                 ))}
@@ -321,7 +319,7 @@ function AdditionalContextSection({
               <button
                 onClick={addRequest}
                 disabled={!newRequest.trim()}
-                className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="px-3 py-2 bg-white border border-black/10 rounded-xl text-black text-sm hover:bg-black/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >Add</button>
             </div>
           </div>
@@ -383,7 +381,7 @@ function timeAgo(iso: string): string {
 
 export default function CreateGoal() {
   const { goals, setGoals, schedule, setPlan, showToast } = useApp();
-  const { isAuthenticated, getAccessTokenSilently } = useAuth0();
+  const { isAuthenticated, getAccessTokenSilently, loginWithRedirect } = useAuth0();
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditing = !!id;
@@ -690,17 +688,17 @@ export default function CreateGoal() {
     return (
       <div className="max-w-2xl pb-20">
         <div className="flex items-center gap-2 mb-8 text-sm">
-          <button onClick={() => navigate("/")} className="text-gray-500 hover:text-white transition-colors">
+          <button onClick={() => navigate("/")} className="text-black/40 hover:text-black transition-colors">
             ← Goals
           </button>
-          <span className="text-gray-700">/</span>
-          <span className="text-gray-300 font-medium">Edit goal</span>
+          <span className="text-black/20">/</span>
+          <span className="text-black/60 font-medium">Edit goal</span>
         </div>
 
         <div className="flex flex-col gap-4">
           {/* Goal details */}
           <section className={cardCls}>
-            <h2 className="text-sm font-semibold text-white">Goal details</h2>
+            <h2 className="text-sm font-semibold text-black">Goal details</h2>
             <div className="flex flex-col gap-1.5">
               <label className={fieldLabel}>What do you want to achieve?</label>
               <input
@@ -730,14 +728,14 @@ export default function CreateGoal() {
 
           {/* Time commitment */}
           <section className={cardCls}>
-            <h2 className="text-sm font-semibold text-white">Time commitment</h2>
+            <h2 className="text-sm font-semibold text-black">Time commitment</h2>
             <TimeCommitmentSection form={form} patch={patch} />
           </section>
 
           {/* Personalisation questions */}
           {form.followup_questions.length > 0 && (
             <section className={cardCls}>
-              <h2 className="text-sm font-semibold text-white">Personalisation</h2>
+              <h2 className="text-sm font-semibold text-black">Personalisation</h2>
               <div className="flex flex-col gap-4">
                 {form.followup_questions.map((fq, i) => (
                   <div key={i} className="flex flex-col gap-1.5">
@@ -762,22 +760,22 @@ export default function CreateGoal() {
 
           {/* Post-save regen prompt */}
           {showRegenPrompt && (
-            <div className="rounded-xl border border-indigo-700/50 bg-indigo-950/30 p-4 flex flex-col gap-3">
-              <p className="text-sm text-white font-medium">Goal saved!</p>
-              <p className="text-sm text-gray-400">Would you like to regenerate the plan blocks for <span className="text-white">{form.title}</span>? Other goals won't be affected.</p>
-              {regenError && <p className="text-xs text-red-400">{regenError}</p>}
+            <div className="rounded-2xl border border-black/8 bg-white p-4 flex flex-col gap-3 shadow-sm">
+              <p className="text-sm text-black font-medium">Goal saved!</p>
+              <p className="text-sm text-black/50">Would you like to regenerate the plan blocks for <span className="text-black font-medium">{form.title}</span>? Other goals won't be affected.</p>
+              {regenError && <p className="text-xs text-red-500">{regenError}</p>}
               <div className="flex gap-2">
                 <button
                   onClick={regenerateSavedGoal}
                   disabled={regenLoading}
-                  className="flex-1 py-2 bg-indigo-600 rounded-lg text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex-1 py-2 bg-black rounded-full text-white text-sm font-medium hover:bg-black/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {regenLoading ? "Regenerating…" : "Regenerate"}
                 </button>
                 <button
                   onClick={() => navigate("/")}
                   disabled={regenLoading}
-                  className="flex-1 py-2 border border-gray-700 rounded-lg text-gray-400 text-sm hover:border-gray-500 hover:text-gray-200 disabled:opacity-50 transition-colors"
+                  className="flex-1 py-2 border border-black/10 rounded-full text-black/40 text-sm hover:border-black/25 hover:text-black/70 disabled:opacity-50 transition-colors"
                 >
                   Not now
                 </button>
@@ -789,7 +787,7 @@ export default function CreateGoal() {
           {!showRegenPrompt && (
           <div className="flex items-center gap-3 pt-1">
             <button
-              className="flex-1 py-2.5 bg-indigo-600 rounded-lg text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex-1 py-2.5 bg-black rounded-full text-white text-sm font-medium hover:bg-black/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               onClick={handleEditSave}
               disabled={!form.title.trim() || saveLoading}
             >
@@ -798,19 +796,19 @@ export default function CreateGoal() {
 
             {showDeleteConfirm ? (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-400 whitespace-nowrap">Are you sure?</span>
+                <span className="text-xs text-black/40 whitespace-nowrap">Are you sure?</span>
                 <button
-                  className="px-3 py-2.5 bg-red-900/40 border border-red-800 rounded-lg text-red-400 text-sm hover:bg-red-900/60 transition-colors"
+                  className="px-3 py-2.5 bg-red-50 border border-red-200 rounded-full text-red-500 text-sm hover:bg-red-100 transition-colors"
                   onClick={deleteGoal}
                 >Delete</button>
                 <button
-                  className="px-3 py-2.5 text-sm text-gray-500 hover:text-white transition-colors"
+                  className="px-3 py-2.5 text-sm text-black/40 hover:text-black transition-colors"
                   onClick={() => setShowDeleteConfirm(false)}
                 >Cancel</button>
               </div>
             ) : (
               <button
-                className="px-4 py-2.5 border border-gray-700 rounded-lg text-gray-400 text-sm hover:border-red-800/70 hover:text-red-400 transition-colors"
+                className="px-4 py-2.5 border border-black/10 rounded-full text-black/40 text-sm hover:border-red-200 hover:text-red-500 transition-colors"
                 onClick={() => setShowDeleteConfirm(true)}
               >Delete</button>
             )}
@@ -838,36 +836,36 @@ export default function CreateGoal() {
 
         {drafts.length > 0 && (
           <div className="flex flex-col gap-3 mb-6">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-widest">Saved drafts</p>
+            <p className="text-xs font-medium text-black/30 uppercase tracking-widest">Saved drafts</p>
             {drafts.map(draft => (
               <div
                 key={draft.id}
-                className="flex items-center gap-3 rounded-xl border border-gray-800 bg-gray-900/40 px-4 py-3 hover:border-gray-700 transition-colors group"
+                className="flex items-center gap-3 rounded-2xl border border-black/8 bg-white px-4 py-3 hover:border-black/15 transition-colors group shadow-sm"
               >
                 <button
                   className="flex-1 flex flex-col items-start text-left min-w-0"
                   onClick={() => resumeDraft(draft)}
                 >
-                  <span className="text-sm font-medium text-white truncate w-full">
+                  <span className="text-sm font-medium text-black truncate w-full">
                     {draft.form.title.trim() || "Untitled goal"}
                   </span>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-gray-600">
+                    <span className="text-xs text-black/30">
                       Step {draft.step} of 3
                     </span>
-                    <span className="text-gray-700">·</span>
-                    <span className="text-xs text-gray-600">{timeAgo(draft.savedAt)}</span>
+                    <span className="text-black/20">·</span>
+                    <span className="text-xs text-black/30">{timeAgo(draft.savedAt)}</span>
                   </div>
                 </button>
                 <button
                   onClick={() => resumeDraft(draft)}
-                  className="shrink-0 text-xs px-3 py-1.5 rounded-lg border border-gray-700 text-gray-400 hover:border-indigo-600/60 hover:text-indigo-400 transition-colors"
+                  className="shrink-0 text-xs px-3 py-1.5 rounded-full border border-black/10 text-black/40 hover:border-black/25 hover:text-black transition-colors"
                 >
                   Resume
                 </button>
                 <button
                   onClick={() => deleteDraftById(draft.id)}
-                  className="shrink-0 text-gray-600 hover:text-red-400 transition-colors p-1"
+                  className="shrink-0 text-black/20 hover:text-red-500 transition-colors p-1"
                   title="Delete draft"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
@@ -881,7 +879,7 @@ export default function CreateGoal() {
 
         <button
           onClick={startNewDraft}
-          className="w-full py-3 rounded-xl border border-dashed border-gray-700 text-gray-400 hover:border-indigo-600/50 hover:text-indigo-400 text-sm font-medium transition-colors"
+          className="w-full py-3 rounded-2xl border border-dashed border-black/15 text-black/35 hover:border-black/30 hover:text-black/60 text-sm font-medium transition-colors"
         >
           + Start a new goal
         </button>
@@ -912,70 +910,58 @@ export default function CreateGoal() {
   return (
     <div className="max-w-2xl pb-20">
 
+      {/* Guest banner */}
+      {!isAuthenticated && (
+        <div className="mb-6 flex items-center justify-between gap-4 px-4 py-3 rounded-2xl border border-black/8 bg-white text-sm shadow-sm">
+          <span className="text-black/40">Sign up to save your goals and plan.</span>
+          <button
+            onClick={() => loginWithRedirect()}
+            className="shrink-0 px-4 py-1.5 bg-black text-white text-xs font-semibold rounded-full hover:bg-black/80 transition-colors"
+          >
+            Sign up free
+          </button>
+        </div>
+      )}
+
       {/* Header */}
-      <div className="flex items-center gap-2 mb-6 text-sm">
+      <div className="flex items-center justify-between mb-6">
         <button
-          onClick={() => step > 1 ? setStep((s) => (s - 1) as 1 | 2 | 3) : setActiveDraftId(null)}
-          className="text-gray-500 hover:text-white transition-colors"
+          onClick={() => {
+            if (step > 1) return setStep((s) => (s - 1) as 1 | 2 | 3);
+            if (!isAuthenticated) return navigate("/");
+            setActiveDraftId(null);
+          }}
+          className="text-sm text-black/40 hover:text-black transition-colors"
         >
-          ←
+          ← {step > 1 ? "Back" : "Home"}
         </button>
-        <span className="text-gray-700">/</span>
-        <span className="text-gray-300 font-medium">New goal</span>
+        <span className="text-xs text-black/30 font-medium">Step {step} of 3</span>
       </div>
 
-      {/* Step progress bar */}
-      <div className="flex items-center gap-1 mb-8">
-        {STEP_LABELS.map((label, i) => {
-          const s = (i + 1) as 1 | 2 | 3;
-          const isCurrent = s === step;
-          const isDone = s < step;
-          return (
-            <div key={s} className="flex items-center gap-1 flex-1 last:flex-none">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <div
-                  className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 transition-colors ${
-                    isCurrent
-                      ? "bg-indigo-600 text-white"
-                      : isDone
-                      ? "bg-indigo-900/60 text-indigo-400 border border-indigo-700/60"
-                      : "bg-gray-800 text-gray-600 border border-gray-700"
-                  }`}
-                >
-                  {isDone ? (
-                    <svg className="w-3.5 h-3.5" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth={2}>
-                      <path d="M2.5 7l3 3 6-6" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  ) : s}
-                </div>
-                <span
-                  className={`text-xs font-medium truncate ${
-                    isCurrent ? "text-white" : isDone ? "text-indigo-400" : "text-gray-600"
-                  }`}
-                >
-                  {label}
-                </span>
-              </div>
-              {i < STEP_LABELS.length - 1 && (
-                <div className={`h-px flex-1 mx-1 ${s < step ? "bg-indigo-700/60" : "bg-gray-800"}`} />
-              )}
-            </div>
-          );
-        })}
+      {/* Step progress bar — iOS segmented capsule style */}
+      <div className="flex gap-1.5 mb-8">
+        {[1, 2, 3].map((s) => (
+          <div
+            key={s}
+            className={`h-1 flex-1 rounded-full transition-all duration-300 ${
+              s <= step ? "bg-white" : "bg-white/10"
+            }`}
+          />
+        ))}
       </div>
 
       {/* ---- Step 1: Your Goal ---- */}
       {step === 1 && (
         <div className="flex flex-col gap-6">
           <div>
-            <h1 className="text-2xl font-bold text-white mb-1">What do you want to achieve?</h1>
-            <p className="text-sm text-gray-500">Be specific — the more detail, the better your plan.</p>
+            <h1 className="text-3xl font-bold tracking-tight text-black mb-1">What do you want to achieve?</h1>
+            <p className="text-sm text-black/40">Be specific — the more detail, the better your plan.</p>
           </div>
 
           {/* Title input */}
           <div className="flex flex-col gap-1.5">
             <input
-              className={`${inputCls} text-base py-3 ${titleError ? "border-red-500/70 focus:border-red-500 focus:ring-red-500/30" : ""}`}
+              className={`${inputCls} text-base ${titleError ? "border-red-300 focus:border-red-400 focus:ring-red-200" : ""}`}
               placeholder="e.g. Learn fingerstyle guitar, Run a 5K, Build a morning routine"
               value={form.title}
               autoFocus
@@ -994,7 +980,7 @@ export default function CreateGoal() {
 
           {/* Templates */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-gray-500 shrink-0">Try one of these →</span>
+            <span className="text-xs text-black/30 shrink-0">Try one of these →</span>
             {TEMPLATES.map((t) => (
               <button
                 key={t.title}
@@ -1002,8 +988,8 @@ export default function CreateGoal() {
                 onClick={() => applyTemplate(t)}
                 className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
                   form.title === t.title
-                    ? "bg-indigo-600/20 border-indigo-500/60 text-indigo-300"
-                    : "bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200"
+                    ? "bg-black/8 border-black/30 text-black"
+                    : "bg-white border-black/10 text-black/40 hover:border-black/25 hover:text-black/70"
                 }`}
               >
                 {t.title}
@@ -1018,7 +1004,7 @@ export default function CreateGoal() {
 
           <div className="flex justify-end">
             <button
-              className="px-6 py-2.5 bg-indigo-600 rounded-lg text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-7 py-3 bg-black text-white text-sm font-semibold rounded-full hover:bg-black/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               disabled={!form.title.trim()}
               onClick={() => {
                 const titleChanged = form.title.trim() !== titleForQuestions && form.followup_questions.length > 0;
@@ -1026,7 +1012,7 @@ export default function CreateGoal() {
                 setStep(2);
               }}
             >
-              Next →
+              Continue →
             </button>
           </div>
         </div>
@@ -1036,15 +1022,15 @@ export default function CreateGoal() {
       {step === 2 && (
         <div className="flex flex-col gap-6">
           <div>
-            <h1 className="text-2xl font-bold text-white mb-1">Time & schedule</h1>
-            <p className="text-sm text-gray-500">How long is this goal, and how much time can you give it?</p>
+            <h1 className="text-3xl font-bold tracking-tight text-black mb-1">Time & schedule</h1>
+            <p className="text-sm text-black/40">How long is this goal, and how much time can you give it?</p>
           </div>
 
           {/* Goal timeframe */}
           <div className={cardCls}>
             <div>
-              <p className="text-sm font-semibold text-white mb-0.5">Goal timeframe</p>
-              <p className="text-xs text-gray-500">How long do you want to work on this goal?</p>
+              <p className="text-sm font-semibold text-black mb-0.5">Goal timeframe</p>
+              <p className="text-xs text-black/40">How long do you want to work on this goal?</p>
             </div>
 
             {/* Duration preset buttons */}
@@ -1061,8 +1047,8 @@ export default function CreateGoal() {
                     }}
                     className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
                       isActive
-                        ? "bg-indigo-600/20 border-indigo-500/60 text-indigo-300"
-                        : "bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200"
+                        ? "bg-black/8 border-black/30 text-black"
+                        : "bg-white border-black/10 text-black/40 hover:border-black/25 hover:text-black/70"
                     }`}
                   >
                     {preset.label}
@@ -1077,8 +1063,8 @@ export default function CreateGoal() {
                 }}
                 className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
                   form.timeframe.end_date === "" && !showCustomDates
-                    ? "bg-indigo-600/20 border-indigo-500/60 text-indigo-300"
-                    : "bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200"
+                    ? "bg-black/8 border-black/30 text-black"
+                    : "bg-white border-black/10 text-black/40 hover:border-black/25 hover:text-black/70"
                 }`}
               >
                 No end date
@@ -1088,8 +1074,8 @@ export default function CreateGoal() {
                 onClick={() => setShowCustomDates((v) => !v)}
                 className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
                   showCustomDates || (!activePreset && !!form.timeframe.end_date)
-                    ? "bg-indigo-600/20 border-indigo-500/60 text-indigo-300"
-                    : "bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200"
+                    ? "bg-black/8 border-black/30 text-black"
+                    : "bg-white border-black/10 text-black/40 hover:border-black/25 hover:text-black/70"
                 }`}
               >
                 Custom
@@ -1111,7 +1097,7 @@ export default function CreateGoal() {
             <TimeCommitmentSection form={form} patch={patch} />
           </div>
 
-          <div className="flex justify-between">
+          <div className="flex justify-between items-center">
             <button onClick={() => setStep(1)} className="px-4 py-2.5 text-sm text-gray-500 hover:text-white transition-colors">
               ← Back
             </button>
@@ -1122,9 +1108,9 @@ export default function CreateGoal() {
                 }
                 setStep(3);
               }}
-              className="px-6 py-2.5 bg-indigo-600 rounded-lg text-white text-sm font-medium hover:bg-indigo-700 transition-colors"
+              className="px-7 py-3 bg-black text-white text-sm font-semibold rounded-full hover:bg-black/80 transition-colors"
             >
-              Next →
+              Continue →
             </button>
           </div>
         </div>
@@ -1134,8 +1120,8 @@ export default function CreateGoal() {
       {step === 3 && (
         <div className="flex flex-col gap-6">
           <div>
-            <h1 className="text-2xl font-bold text-white mb-1">Personalise your plan</h1>
-            <p className="text-sm text-gray-500">Help the AI understand your situation better. All optional.</p>
+            <h1 className="text-3xl font-bold tracking-tight text-black mb-1">Personalise your plan</h1>
+            <p className="text-sm text-black/40">Help the AI understand your situation better. All optional.</p>
           </div>
 
           {/* Personalisation questions */}
@@ -1157,7 +1143,7 @@ export default function CreateGoal() {
               <div className="flex flex-col gap-5">
                 {form.followup_questions.map((fq, i) => (
                   <div key={i} className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-gray-300">
+                    <label className="text-sm font-medium text-black/60">
                       {i + 1}. {fq.question}
                     </label>
                     {/* Boolean */}
@@ -1170,8 +1156,8 @@ export default function CreateGoal() {
                             onClick={() => updateAnswer(i, fq.user_response === opt ? "" : opt)}
                             className={`px-5 py-2 rounded-lg border text-sm font-medium transition-all ${
                               fq.user_response === opt
-                                ? "bg-indigo-600/20 border-indigo-500/60 text-indigo-300"
-                                : "bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200"
+                                ? "bg-black/8 border-black/30 text-black"
+                                : "bg-white border-black/10 text-black/40 hover:border-black/25 hover:text-black/70"
                             }`}
                           >{opt}</button>
                         ))}
@@ -1187,8 +1173,8 @@ export default function CreateGoal() {
                             onClick={() => updateAnswer(i, fq.user_response === opt ? "" : opt)}
                             className={`px-3 py-1.5 rounded-lg border text-sm transition-all ${
                               fq.user_response === opt
-                                ? "bg-indigo-600/20 border-indigo-500/60 text-indigo-300"
-                                : "bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200"
+                                ? "bg-black/8 border-black/30 text-black"
+                                : "bg-white border-black/10 text-black/40 hover:border-black/25 hover:text-black/70"
                             }`}
                           >{opt}</button>
                         ))}
@@ -1234,15 +1220,15 @@ export default function CreateGoal() {
                               key={n}
                               type="button"
                               onClick={() => updateAnswer(i, fq.user_response === String(n) ? "" : String(n))}
-                              className={`w-10 h-10 rounded-lg border text-sm font-semibold transition-all ${
+                              className={`w-10 h-10 rounded-xl border text-sm font-semibold transition-all ${
                                 fq.user_response === String(n)
-                                  ? "bg-indigo-600 border-indigo-500 text-white"
-                                  : "bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200"
+                                  ? "bg-black border-black text-white"
+                                  : "bg-white border-black/10 text-black/40 hover:border-black/25 hover:text-black/70"
                               }`}
                             >{n}</button>
                           ))}
                         </div>
-                        <div className="flex justify-between text-xs text-gray-700 px-1">
+                        <div className="flex justify-between text-xs text-black/25 px-1">
                           <span>Not at all</span><span>Very much</span>
                         </div>
                       </div>
@@ -1262,7 +1248,7 @@ export default function CreateGoal() {
             )}
 
             {!qLoading && form.followup_questions.length === 0 && !qError && (
-              <p className="text-xs text-gray-600 italic">
+              <p className="text-xs text-black/25 italic">
                 No questions generated yet — make sure you have a goal title entered.
               </p>
             )}
@@ -1271,18 +1257,18 @@ export default function CreateGoal() {
           {/* Restrictions */}
           <div className={cardCls}>
             <div>
-              <p className="text-sm font-semibold text-white mb-0.5">Anything to keep in mind?</p>
-              <p className="text-xs text-gray-500">Injuries, equipment limits, noise restrictions — optional</p>
+              <p className="text-sm font-semibold text-black mb-0.5">Anything to keep in mind?</p>
+              <p className="text-xs text-black/40">Injuries, equipment limits, noise restrictions — optional</p>
             </div>
 
             {form.restrictions.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {form.restrictions.map((r, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 text-xs bg-gray-800 border border-gray-700 rounded-full pl-3 pr-1.5 py-1 text-gray-300">
+                  <span key={i} className="inline-flex items-center gap-1 text-xs bg-black/5 border border-black/10 rounded-full pl-3 pr-1.5 py-1 text-black/60">
                     {r}
                     <button
                       onClick={() => patch({ restrictions: form.restrictions.filter((_, j) => j !== i) })}
-                      className="w-4 h-4 flex items-center justify-center rounded-full text-gray-500 hover:text-white hover:bg-gray-600 transition-colors"
+                      className="w-4 h-4 flex items-center justify-center rounded-full text-black/30 hover:text-black hover:bg-black/10 transition-colors"
                     >×</button>
                   </span>
                 ))}
@@ -1308,7 +1294,7 @@ export default function CreateGoal() {
                   setNewRestriction("");
                 }}
                 disabled={!newRestriction.trim()}
-                className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="px-3 py-2 bg-white border border-black/10 rounded-xl text-black text-sm hover:bg-black/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >Add</button>
             </div>
 
@@ -1327,7 +1313,7 @@ export default function CreateGoal() {
 
           {/* Schedule warning */}
           {!hasSchedule && (
-            <div className="flex items-start gap-3 px-4 py-3 rounded-lg border border-amber-700/50 bg-amber-900/20 text-amber-300/80 text-xs leading-relaxed">
+            <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-amber-300/60 bg-amber-50 text-amber-700 text-xs leading-relaxed">
               <svg className="w-4 h-4 shrink-0 mt-0.5" viewBox="0 0 16 16" fill="currentColor">
                 <path fillRule="evenodd" d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-3.5a.75.75 0 0 1 .75.75v4a.75.75 0 0 1-1.5 0v-4A.75.75 0 0 1 8 4.5zm0 7.25a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z" />
               </svg>
@@ -1345,7 +1331,7 @@ export default function CreateGoal() {
           )}
 
           {generateError && (
-            <div className="px-4 py-3 rounded-lg border border-red-700/60 bg-red-950/40 text-red-300 text-sm">
+            <div className="px-4 py-3 rounded-xl border border-red-200 bg-red-50 text-red-600 text-sm">
               {generateError}
             </div>
           )}
@@ -1353,26 +1339,26 @@ export default function CreateGoal() {
           {/* Generating spinner */}
           {generating && (
             <div className="flex flex-col items-center gap-3 py-10 text-center">
-              <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-              <p className="text-sm text-gray-400">Building your personalised plan…</p>
-              <p className="text-xs text-gray-600">This usually takes 10–20 seconds</p>
+              <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm text-black/50">Building your personalised plan…</p>
+              <p className="text-xs text-black/30">This usually takes 10–20 seconds</p>
             </div>
           )}
 
           {!generating && (
-            <div className="flex justify-between pt-1">
+            <div className="flex justify-between items-center pt-1">
               <button
                 onClick={() => setStep(2)}
-                className="px-4 py-2.5 text-sm text-gray-500 hover:text-white transition-colors"
+                className="px-4 py-2.5 text-sm text-black/40 hover:text-black transition-colors"
               >
                 ← Back
               </button>
               <button
-                className="px-6 py-2.5 bg-indigo-600 rounded-lg text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-7 py-3 bg-black text-white text-sm font-semibold rounded-full hover:bg-black/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 onClick={handleGenerate}
                 disabled={saveLoading}
               >
-                {saveLoading ? "Checking…" : "Generate plan →"}
+                {saveLoading ? "Checking…" : "Make my plan →"}
               </button>
             </div>
           )}

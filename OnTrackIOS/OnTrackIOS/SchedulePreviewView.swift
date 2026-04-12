@@ -19,76 +19,87 @@ struct SchedulePreviewView: View {
     private var activeDays: Int { plan.count }
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .bottom) {
             cream.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 24) {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
 
-                        // Header
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text(goalTitle.lowercased())
-                                .font(.system(size: 16, weight: .semibold))
-                                .tracking(-0.3)
-                                .foregroundColor(.black.opacity(0.35))
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 7)
-                                .background(Color.black.opacity(0.06))
-                                .cornerRadius(20)
-
-                            Text("your plan\nis ready.")
-                                .font(.system(size: 52, weight: .bold))
-                                .tracking(-1.56)
-                                .foregroundColor(.black)
+                    // Header: image + chip + title
+                    VStack(spacing: 16) {
+                        // Goal image placeholder
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 24)
+                                .fill(Color.white)
+                                .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
+                            Image(systemName: "target")
+                                .font(.system(size: 32))
+                                .foregroundColor(.black.opacity(0.55))
                         }
-                        .opacity(headerVisible ? 1 : 0)
-                        .offset(y: headerVisible ? 0 : 12)
+                        .frame(width: 113, height: 94)
 
-                        // Stats row
-                        HStack(spacing: 10) {
-                            StatChip(value: "\(activeDays)", label: "days")
-                            StatChip(value: "\(totalSessions)", label: "sessions")
-                            StatChip(value: formatHours(totalMinutes), label: "per week")
-                        }
-                        .opacity(statsVisible ? 1 : 0)
-                        .offset(y: statsVisible ? 0 : 8)
+                        // "your plan is ready" chip
+                        Text("your plan is ready")
+                            .font(.system(size: 16, weight: .medium))
+                            .tracking(-0.32)
+                            .foregroundColor(.black)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.black.opacity(0.06))
+                            .cornerRadius(999)
 
-                        // Day cards
-                        VStack(spacing: 14) {
-                            ForEach(Array(plan.enumerated()), id: \.offset) { i, day in
-                                DayPreviewCard(day: day)
-                                    .opacity(cardsVisible.indices.contains(i) && cardsVisible[i] ? 1 : 0)
-                                    .offset(y: cardsVisible.indices.contains(i) && cardsVisible[i] ? 0 : 16)
-                            }
+                        // Goal title
+                        Text(goalTitle.lowercased())
+                            .font(.system(size: 40, weight: .semibold))
+                            .tracking(-1.2)
+                            .foregroundColor(.black)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: 250)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .opacity(headerVisible ? 1 : 0)
+                    .offset(y: headerVisible ? 0 : 12)
+
+                    // Stats row
+                    HStack(spacing: 20) {
+                        PreviewStatBox(value: "\(activeDays)", label: "days")
+                        PreviewStatBox(value: "\(totalSessions)", label: "sessions")
+                        PreviewStatBox(value: formatHours(totalMinutes), label: "hours")
+                    }
+                    .opacity(statsVisible ? 1 : 0)
+                    .offset(y: statsVisible ? 0 : 8)
+
+                    // Day cards
+                    VStack(spacing: 20) {
+                        ForEach(Array(plan.enumerated()), id: \.offset) { i, day in
+                            PreviewDayCard(day: day)
+                                .opacity(cardsVisible.indices.contains(i) && cardsVisible[i] ? 1 : 0)
+                                .offset(y: cardsVisible.indices.contains(i) && cardsVisible[i] ? 0 : 16)
                         }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 24)
-                    .padding(.bottom, 32)
-                }
 
-                // CTA
-                VStack(spacing: 12) {
-                    PrimaryButton(label: "start tracking →") {
-                        appState.readyForMainApp = true
-                    }
-                    Text("you can adjust this anytime")
-                        .font(.system(size: 14, weight: .medium))
-                        .tracking(-0.28)
-                        .foregroundColor(.black.opacity(0.3))
+                    Spacer().frame(height: 100)
                 }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 48)
-                .opacity(statsVisible ? 1 : 0)
+                .padding(.horizontal, 20)
+                .padding(.top, 40)
+                .padding(.bottom, 32)
             }
+
+            // Bottom CTA
+            VStack(spacing: 12) {
+                PrimaryButton(label: "start tracking") {
+                    appState.readyForMainApp = true
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 48)
+            .opacity(statsVisible ? 1 : 0)
         }
         .navigationBarBackButtonHidden(true)
         .toolbarBackground(cream, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .onAppear {
             cardsVisible = Array(repeating: false, count: plan.count)
-            // Staggered entrance
             withAnimation(.easeOut(duration: 0.45)) { headerVisible = true }
             withAnimation(.easeOut(duration: 0.45).delay(0.15)) { statsVisible = true }
             for i in plan.indices {
@@ -100,171 +111,191 @@ struct SchedulePreviewView: View {
     }
 
     private func formatHours(_ mins: Int) -> String {
-        if mins < 60 { return "\(mins)m" }
-        let h = mins / 60
-        let m = mins % 60
-        return m == 0 ? "\(h)h" : "\(h)h \(m)m"
+        let hours = Double(mins) / 60.0
+        let rounded = (hours * 2).rounded() / 2
+        if rounded == Double(Int(rounded)) { return "\(Int(rounded))" }
+        return String(format: "%.1f", rounded)
     }
 }
 
-// MARK: - Stat chip
+// MARK: - Stat box
 
-private struct StatChip: View {
+private struct PreviewStatBox: View {
     let value: String
     let label: String
 
     var body: some View {
-        VStack(spacing: 3) {
+        VStack(spacing: 8) {
             Text(value)
-                .font(.system(size: 28, weight: .bold))
-                .tracking(-0.84)
+                .font(.system(size: 32, weight: .medium))
+                .tracking(-0.64)
                 .foregroundColor(.black)
             Text(label)
-                .font(.system(size: 13, weight: .medium))
-                .tracking(-0.26)
-                .foregroundColor(.black.opacity(0.4))
+                .font(.system(size: 20, weight: .medium))
+                .tracking(-0.4)
+                .foregroundColor(.black)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 18)
-        .background(Color(red: 241/255, green: 241/255, blue: 241/255))
-        .cornerRadius(16)
+        .padding(16)
+        .background(Color.white)
+        .cornerRadius(20)
     }
 }
 
 // MARK: - Day card
 
-private struct DayPreviewCard: View {
+private struct PreviewDayCard: View {
     let day: DayPlan
 
-    private var isToday: Bool {
+    private var parsedDate: Date? {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
-        return day.date == f.string(from: Date())
+        return f.date(from: day.date)
     }
 
-    private var formattedDate: (weekday: String, date: String) {
-        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
-        guard let d = f.date(from: day.date) else { return (day.date, "") }
-        let wf = DateFormatter(); wf.dateFormat = "EEEE"
-        let df = DateFormatter(); df.dateFormat = "MMM d"
-        return (wf.string(from: d).lowercased(), df.string(from: d))
+    private var weekdayName: String {
+        guard let d = parsedDate else { return day.date }
+        let f = DateFormatter(); f.dateFormat = "EEEE"
+        return f.string(from: d).lowercased() + "s"
+    }
+
+    private var shortDate: String {
+        guard let d = parsedDate else { return "" }
+        let f = DateFormatter(); f.dateFormat = "MMMM d"
+        return f.string(from: d).lowercased()
     }
 
     private var totalMins: Int {
         day.time_blocks.reduce(0) { $0 + $1.tasks.reduce(0) { $0 + $1.estimated_minutes } }
     }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+    private func durationLabel(_ mins: Int) -> String {
+        if mins < 60 { return "\(mins) min" }
+        let h = mins / 60
+        let m = mins % 60
+        return m == 0 ? "\(h) hour\(h == 1 ? "" : "s")" : "\(h)h \(m)m"
+    }
 
-            // Date row
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+
+            // Header: day name + duration chip
             HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 8) {
-                        Text(formattedDate.weekday)
-                            .font(.system(size: 20, weight: .semibold))
-                            .tracking(-0.6)
-                            .foregroundColor(.black)
-                        if isToday {
-                            Text("today")
-                                .font(.system(size: 12, weight: .semibold))
-                                .tracking(-0.24)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 9)
-                                .padding(.vertical, 4)
-                                .background(Color.black)
-                                .cornerRadius(20)
-                        }
-                    }
-                    Text(formattedDate.date)
-                        .font(.system(size: 14, weight: .regular))
-                        .tracking(-0.28)
-                        .foregroundColor(.black.opacity(0.35))
-                }
+                Text(weekdayName)
+                    .font(.system(size: 20, weight: .medium))
+                    .tracking(-0.4)
+                    .foregroundColor(.black)
                 Spacer()
-                Text("\(totalMins) min")
-                    .font(.system(size: 14, weight: .medium))
-                    .tracking(-0.28)
-                    .foregroundColor(.black.opacity(0.35))
+                HStack(spacing: 5) {
+                    Image(systemName: "clock")
+                        .font(.system(size: 11))
+                        .foregroundColor(.black.opacity(0.6))
+                    Text(durationLabel(totalMins))
+                        .font(.system(size: 12, weight: .medium))
+                        .tracking(-0.24)
+                        .foregroundColor(.black)
+                }
+                .padding(.horizontal, 7)
+                .padding(.vertical, 8)
+                .cornerRadius(999)
             }
 
-            // Blocks
-            VStack(spacing: 6) {
-                ForEach(day.time_blocks) { block in
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 10) {
-                            // Dot accent
-                            Circle()
-                                .fill(Color.black.opacity(0.15))
-                                .frame(width: 7, height: 7)
-
-                            Text(block.label)
-                                .font(.system(size: 15, weight: .semibold))
-                                .tracking(-0.3)
-                                .foregroundColor(.black)
-
-                            Spacer()
-
-                            if let start = block.start_time, let end = block.end_time {
-                                Text("\(formatTime(start)) – \(formatTime(end))")
-                                    .font(.system(size: 13, weight: .regular))
-                                    .tracking(-0.26)
-                                    .foregroundColor(.black.opacity(0.35))
-                            }
-                        }
-
-                        if !block.tasks.isEmpty {
-                            VStack(alignment: .leading, spacing: 8) {
-                                ForEach(block.tasks, id: \.title) { task in
-                                    HStack(alignment: .top, spacing: 8) {
-                                        Circle()
-                                            .fill(Color.black.opacity(0.12))
-                                            .frame(width: 4, height: 4)
-                                            .padding(.top, 5)
-
-                                        VStack(alignment: .leading, spacing: 3) {
-                                            HStack {
-                                                Text(task.title)
-                                                    .font(.system(size: 13, weight: .semibold))
-                                                    .tracking(-0.26)
-                                                    .foregroundColor(.black.opacity(0.7))
-                                                Spacer()
-                                                Text("\(task.estimated_minutes)m")
-                                                    .font(.system(size: 12))
-                                                    .foregroundColor(.black.opacity(0.28))
-                                            }
-                                            if !task.description.isEmpty {
-                                                Text(task.description)
-                                                    .font(.system(size: 12, weight: .regular))
-                                                    .tracking(-0.24)
-                                                    .foregroundColor(.black.opacity(0.42))
-                                                    .fixedSize(horizontal: false, vertical: true)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            .padding(.leading, 14)
-                            .padding(.top, 2)
-                        }
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 12)
-                    .background(Color.white.opacity(isToday ? 0.9 : 0.55))
-                    .cornerRadius(12)
-                }
+            // Time blocks
+            ForEach(day.time_blocks) { block in
+                PreviewSessionBlock(block: block, shortDate: shortDate)
             }
         }
         .padding(16)
-        .background(
-            isToday
-                ? Color(red: 235/255, green: 235/255, blue: 230/255)
-                : Color(red: 241/255, green: 241/255, blue: 241/255)
-        )
+        .background(Color.white)
         .cornerRadius(20)
-        .overlay(
-            isToday
-                ? RoundedRectangle(cornerRadius: 20).stroke(Color.black.opacity(0.12), lineWidth: 1)
-                : nil
-        )
+        .shadow(color: .black.opacity(0.08), radius: 13, x: 0, y: 4)
+    }
+}
+
+// MARK: - Session block
+
+private struct PreviewSessionBlock: View {
+    let block: TimeBlock
+    let shortDate: String
+
+    private func formatTime(_ t: String) -> String {
+        let f = DateFormatter(); f.dateFormat = "HH:mm"
+        guard let d = f.date(from: t) else { return t }
+        let out = DateFormatter(); out.dateFormat = "h:mma"
+        return out.string(from: d)
+    }
+
+    private func taskEmoji(for title: String) -> String {
+        let t = title.lowercased()
+        if t.contains("scroll") || t.contains("feed") || t.contains("browse") { return "🤳" }
+        if t.contains("film") || t.contains("record") || t.contains("shoot") || t.contains("video") { return "🎬" }
+        if t.contains("find") || t.contains("search") || t.contains("research") { return "🔎" }
+        if t.contains("write") || t.contains("hook") || t.contains("caption") || t.contains("journa") { return "✍️" }
+        if t.contains("edit") || t.contains("cut") || t.contains("trim") { return "✂️" }
+        if t.contains("post") || t.contains("publish") || t.contains("upload") || t.contains("share") { return "📱" }
+        if t.contains("plan") || t.contains("strategy") || t.contains("outline") || t.contains("prep") { return "📋" }
+        if t.contains("read") || t.contains("study") || t.contains("learn") || t.contains("watch") { return "📚" }
+        if t.contains("run") || t.contains("jog") || t.contains("sprint") { return "🏃" }
+        if t.contains("lift") || t.contains("weight") || t.contains("strength") || t.contains("gym") { return "🏋️" }
+        if t.contains("practice") || t.contains("train") || t.contains("drill") || t.contains("repeat") { return "💪" }
+        if t.contains("stretch") || t.contains("warm") || t.contains("cool") || t.contains("yoga") { return "🧘" }
+        if t.contains("guitar") || t.contains("piano") || t.contains("drum") || t.contains("chord") || t.contains("instrument") { return "🎸" }
+        if t.contains("sing") || t.contains("vocal") || t.contains("song") { return "🎤" }
+        if t.contains("cook") || t.contains("meal") || t.contains("recipe") || t.contains("food") { return "🍳" }
+        if t.contains("draw") || t.contains("sketch") || t.contains("paint") || t.contains("illustrat") { return "🎨" }
+        if t.contains("code") || t.contains("program") || t.contains("debug") || t.contains("build") { return "💻" }
+        if t.contains("review") || t.contains("analyze") || t.contains("analys") || t.contains("reflect") { return "📊" }
+        if t.contains("meditat") || t.contains("breath") || t.contains("mindful") { return "🧘" }
+        if t.contains("note") || t.contains("list") || t.contains("log") || t.contains("track") { return "📝" }
+        if t.contains("call") || t.contains("meet") || t.contains("discuss") || t.contains("talk") { return "💬" }
+        if t.contains("photo") || t.contains("picture") || t.contains("image") { return "📸" }
+        if t.contains("walk") || t.contains("hike") || t.contains("outdoor") { return "🚶" }
+        if t.contains("danc") || t.contains("choreograph") { return "🩰" }
+        if t.contains("language") || t.contains("vocab") || t.contains("grammar") || t.contains("translat") { return "💬" }
+        return "🎯"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+
+            // Date + time chips
+            HStack {
+                Text(shortDate)
+                    .font(.system(size: 12, weight: .medium))
+                    .tracking(-0.24)
+                    .foregroundColor(.black)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 8)
+                    .background(Color(red: 234/255, green: 234/255, blue: 234/255).opacity(0.76))
+                    .cornerRadius(999)
+
+                Spacer()
+
+                if let start = block.start_time, let end = block.end_time {
+                    Text("\(formatTime(start)) - \(formatTime(end))")
+                        .font(.system(size: 12, weight: .medium))
+                        .tracking(-0.24)
+                        .foregroundColor(.black)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 8)
+                        .cornerRadius(999)
+                }
+            }
+
+            // Tasks
+            ForEach(block.tasks, id: \.title) { task in
+                HStack(spacing: 10) {
+                    Text(task.emoji ?? taskEmoji(for: task.title))
+                        .font(.system(size: 12))
+                    Text(task.title)
+                        .font(.system(size: 12, weight: .medium))
+                        .tracking(-0.24)
+                        .foregroundColor(Color(red: 83/255, green: 83/255, blue: 83/255))
+                    Spacer()
+                }
+            }
+        }
+        .padding(12)
+        .background(Color(red: 249/255, green: 249/255, blue: 249/255).opacity(0.7))
+        .cornerRadius(16)
     }
 }

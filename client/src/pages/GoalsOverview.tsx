@@ -38,7 +38,7 @@ function attributeBlocks(plan: DayPlan[], goals: Goal[]): DayPlan[] {
 
 export default function GoalsOverview() {
   const { goals, schedule, plan, setPlan, showToast } = useApp();
-  const { isAuthenticated, getAccessTokenSilently } = useAuth0();
+  const { isAuthenticated, getAccessTokenSilently, loginWithRedirect } = useAuth0();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [regenGoalId, setRegenGoalId] = useState<string | null>(null);
@@ -135,10 +135,32 @@ export default function GoalsOverview() {
     }
   };
 
+  const guestBanner = !isAuthenticated && (
+    <div className="mb-6 flex items-center justify-between gap-4 px-4 py-3.5 rounded-xl border border-white/10 bg-white/5">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-8 h-8 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
+          <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-white">Sign up to save your plan</p>
+          <p className="text-xs text-gray-500">Your goals will be lost when you close this tab.</p>
+        </div>
+      </div>
+      <button
+        onClick={() => loginWithRedirect()}
+        className="shrink-0 px-4 py-2 bg-white text-black text-sm font-semibold rounded-full hover:bg-gray-100 transition-colors"
+      >
+        Sign up free
+      </button>
+    </div>
+  );
+
   if (goals.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-32 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-indigo-600/20 border border-indigo-600/30 flex items-center justify-center mb-5">
+        <div className="w-16 h-16 rounded-2xl bg-white/6 border border-white/10 flex items-center justify-center mb-5">
           <svg className="w-8 h-8 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -149,9 +171,9 @@ export default function GoalsOverview() {
         </p>
         <Link
           to="/goals/new"
-          className="px-6 py-3 bg-indigo-600 rounded-lg text-white font-medium hover:bg-indigo-700 transition-colors"
+          className="px-6 py-3 bg-white text-black rounded-full font-semibold hover:bg-gray-100 transition-colors"
         >
-          Create your first goal
+          Create your first goal →
         </Link>
       </div>
     );
@@ -159,17 +181,18 @@ export default function GoalsOverview() {
 
   return (
     <div>
+      {guestBanner}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold">Goals</h1>
         <div className="flex gap-2">
           <Link
             to="/goals/new"
-            className="px-3 py-1.5 text-sm border border-gray-600 rounded bg-gray-800 hover:bg-gray-700 transition-colors"
+            className="px-4 py-2 text-sm border border-white/10 rounded-full bg-white/6 hover:bg-white/10 text-white/70 hover:text-white transition-colors"
           >
             + Add goal
           </Link>
           <button
-            className="px-4 py-1.5 text-sm bg-indigo-600 rounded hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2 text-sm bg-white text-black rounded-full hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
             onClick={generate}
             disabled={loading || regenGoalId !== null}
           >
@@ -202,9 +225,9 @@ export default function GoalsOverview() {
       {loading && (
         <div className="flex flex-col gap-3 animate-pulse mb-4">
           {[1, 2].map((n) => (
-            <div key={n} className="border border-gray-700 rounded-lg p-4">
-              <div className="h-4 bg-gray-800 rounded w-48 mb-2" />
-              <div className="h-3 bg-gray-800 rounded w-32" />
+            <div key={n} className="border border-white/8 rounded-2xl p-4">
+              <div className="h-4 bg-white/8 rounded w-48 mb-2" />
+              <div className="h-3 bg-white/6 rounded w-32" />
             </div>
           ))}
         </div>
@@ -217,17 +240,17 @@ export default function GoalsOverview() {
           return (
             <div
               key={goal.id}
-              className={`border rounded-lg p-4 transition-colors ${isRegening ? "border-indigo-700/60 bg-indigo-950/20" : "border-gray-700 bg-transparent"}`}
+              className={`border rounded-2xl p-4 transition-colors ${isRegening ? "border-indigo-500/30 bg-indigo-500/8" : "border-white/8 bg-white/[0.03]"}`}
             >
               <div className="flex items-start justify-between gap-3">
                 <Link to={`/goals/${goal.id}`} className="flex-1 min-w-0 group">
                   <h3 className="font-medium mb-2 group-hover:text-indigo-300 transition-colors">{goal.title}</h3>
                   <div className="flex flex-wrap gap-1.5">
-                    <span className="text-xs bg-gray-800 border border-gray-700 px-2 py-0.5 rounded-full text-gray-300 capitalize">
+                    <span className="text-xs bg-white/6 border border-white/10 px-2 py-0.5 rounded-full text-white/60 capitalize">
                       {goal.skill_level}
                     </span>
                     {goal.timeframe.start_date && goal.timeframe.end_date && (
-                      <span className="text-xs text-gray-500 bg-gray-800/50 border border-gray-700/50 px-2 py-0.5 rounded-full">
+                      <span className="text-xs text-white/40 bg-white/4 border border-white/8 px-2 py-0.5 rounded-full">
                         {goal.timeframe.start_date} → {goal.timeframe.end_date}
                       </span>
                     )}
@@ -235,12 +258,12 @@ export default function GoalsOverview() {
                       {goal.hours_per_week} hr{goal.hours_per_week !== 1 && "s"}/week
                     </span>
                     {goal.selected_days.length > 0 && (
-                      <span className="text-xs text-gray-500 bg-gray-800/50 border border-gray-700/50 px-2 py-0.5 rounded-full">
+                      <span className="text-xs text-white/40 bg-white/4 border border-white/8 px-2 py-0.5 rounded-full">
                         {goal.selected_days.map((d) => d.slice(0, 3)).join(", ")}
                       </span>
                     )}
                     {goal.restrictions.length > 0 && (
-                      <span className="text-xs text-orange-400/70 bg-orange-900/20 border border-orange-800/30 px-2 py-0.5 rounded-full">
+                      <span className="text-xs text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded-full">
                         {goal.restrictions.length} restriction{goal.restrictions.length !== 1 && "s"}
                       </span>
                     )}
@@ -253,7 +276,7 @@ export default function GoalsOverview() {
                       onClick={() => regenerateGoal(goal.id)}
                       disabled={regenGoalId !== null || loading}
                       title="Regenerate blocks for this goal"
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs border border-gray-700 rounded-lg text-gray-400 hover:border-indigo-600/60 hover:text-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs border border-white/10 rounded-full text-white/40 hover:border-indigo-500/40 hover:text-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
                       {isRegening ? (
                         <span className="w-3 h-3 border border-indigo-400 border-t-transparent rounded-full animate-spin" />
@@ -265,7 +288,7 @@ export default function GoalsOverview() {
                       {isRegening ? "Regenerating…" : "Regenerate"}
                     </button>
                   )}
-                  <Link to={`/goals/${goal.id}`} className="text-xs px-2.5 py-1.5 border border-gray-700 rounded-lg text-gray-400 hover:border-gray-500 hover:text-gray-200 transition-colors">
+                  <Link to={`/goals/${goal.id}`} className="text-xs px-2.5 py-1.5 border border-white/10 rounded-full text-white/40 hover:border-white/25 hover:text-white/70 transition-colors">
                     Edit →
                   </Link>
                 </div>

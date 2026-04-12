@@ -106,6 +106,7 @@ struct PlanTask: Codable, Equatable {
     var title: String
     var description: String
     var estimated_minutes: Int
+    var emoji: String?
     var completed: Bool?
 }
 

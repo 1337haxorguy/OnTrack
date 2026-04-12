@@ -26,7 +26,7 @@ struct GoalCreationView: View {
             cream.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                StepProgressBar(steps: 8, current: 1)
+                StepProgressBar(steps: 9, current: 1)
                     .padding(.horizontal, 24)
                     .padding(.top, 32)
                     .padding(.bottom, 40)

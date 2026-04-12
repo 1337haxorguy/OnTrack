@@ -16,7 +16,7 @@ function TimeSelect({ value, onChange }: { value: string; onChange: (v: string) 
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="px-3 py-2 border border-gray-700 rounded-lg bg-gray-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-colors cursor-pointer"
+      className="px-3 py-2 border border-white/10 rounded-xl bg-white/6 text-white text-sm focus:outline-none focus:ring-2 focus:ring-white/10 focus:border-white/25 transition-colors cursor-pointer"
     >
       {TIMES.map(({ value: v, label }) => (
         <option key={v} value={v}>{label}</option>
@@ -26,13 +26,12 @@ function TimeSelect({ value, onChange }: { value: string; onChange: (v: string) 
 }
 
 const inputCls =
-  "px-3 py-2.5 border border-gray-700 rounded-lg bg-gray-900 text-white text-sm w-full " +
-  "focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 " +
-  "transition-colors placeholder:text-gray-600";
+  "px-3 py-2.5 border border-white/10 rounded-xl bg-white/6 text-white text-sm w-full " +
+  "focus:outline-none focus:ring-2 focus:ring-white/10 focus:border-white/25 " +
+  "transition-colors placeholder:text-white/20";
 
-
-const cardCls = "rounded-xl border border-gray-800 bg-gray-900/40 p-5 flex flex-col gap-4";
-const fieldLabel = "text-xs font-medium text-gray-400";
+const cardCls = "rounded-2xl border border-white/8 bg-white/[0.04] p-5 flex flex-col gap-4";
+const fieldLabel = "text-xs font-medium text-white/40";
 
 export default function Profile() {
   const { schedule, setSchedule } = useApp();
@@ -111,7 +110,7 @@ export default function Profile() {
 
   return (
     <div className="max-w-2xl pb-20">
-      <h1 className="text-xl font-bold mb-8">Schedule</h1>
+      <h1 className="text-2xl font-bold mb-8">Schedule</h1>
 
       <div className="flex flex-col gap-4">
 
@@ -156,8 +155,8 @@ export default function Profile() {
                     onClick={() => toggleFreeDay(day)}
                     className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-all ${
                       freeForm.days.includes(day)
-                        ? "bg-indigo-600 border-indigo-500 text-white"
-                        : "bg-gray-900 border-gray-700 text-gray-500 hover:border-gray-600 hover:text-gray-300"
+                        ? "bg-white border-white/20 text-black"
+                        : "bg-white/4 border-white/10 text-white/40 hover:border-white/20 hover:text-white/70"
                     }`}
                   >
                     {DAY_ABBR[day]}
@@ -253,8 +252,8 @@ export default function Profile() {
                   onClick={() => toggleRbDay(day)}
                   className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-all ${
                     rbForm.days.includes(day)
-                      ? "bg-indigo-600 border-indigo-500 text-white"
-                      : "bg-gray-900 border-gray-700 text-gray-500 hover:border-gray-600 hover:text-gray-300"
+                      ? "bg-white border-white/20 text-black"
+                      : "bg-white/4 border-white/10 text-white/40 hover:border-white/20 hover:text-white/70"
                   }`}
                 >
                   {DAY_ABBR[day]}

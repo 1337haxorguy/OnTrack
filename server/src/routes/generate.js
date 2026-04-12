@@ -128,12 +128,17 @@ const OUTPUT_SCHEMA = {
                               "type": "integer",
                               "minimum": 0,
                               "description": "An integer value that estimates how long this task should take the user to complete"
+                            },
+                            "emoji": {
+                              "type": "string",
+                              "description": "A single emoji that best represents the nature of this task (e.g. 🎸 for playing guitar, 🏃 for running, ✍️ for writing)"
                             }
                           },
                           "required": [
                             "title",
                             "description",
-                            "estimated_minutes"
+                            "estimated_minutes",
+                            "emoji"
                           ],
                           "additionalProperties": false
                         },

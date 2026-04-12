@@ -7,7 +7,11 @@
       "Bash(curl -sL \"https://www.figma.com/api/mcp/asset/0bb83cb3-120c-4ab5-9b65-191501f7ca15\" -o /Users/angelodelafuente/Desktop/OnTrack/OnTrackIOS/OnTrackIOS/Assets.xcassets/splash_bg.imageset/splash_bg.png)",
       "Bash(curl -sL \"https://www.figma.com/api/mcp/asset/ed3b24b4-1631-4c48-85ec-94ce45634178\" -o /Users/angelodelafuente/Desktop/OnTrack/OnTrackIOS/OnTrackIOS/Assets.xcassets/splash_overlay.imageset/splash_overlay.png)",
       "Bash(identify /Users/angelodelafuente/Desktop/OnTrack/OnTrackIOS/OnTrackIOS/Assets.xcassets/splash_bg.imageset/splash_bg.png)",
-      "Bash(curl -sL \"https://www.figma.com/api/mcp/asset/4b9bf85a-acae-4d04-ad23-056292983701\" -o /Users/angelodelafuente/Desktop/OnTrack/OnTrackIOS/OnTrackIOS/Assets.xcassets/splash_overlay.imageset/splash_overlay.png)"
+      "Bash(curl -sL \"https://www.figma.com/api/mcp/asset/4b9bf85a-acae-4d04-ad23-056292983701\" -o /Users/angelodelafuente/Desktop/OnTrack/OnTrackIOS/OnTrackIOS/Assets.xcassets/splash_overlay.imageset/splash_overlay.png)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "Bash(sed:*)",
+      "Bash(./node_modules/.bin/tsc --noEmit -p tsconfig.app.json)"
     ]
   }
 }

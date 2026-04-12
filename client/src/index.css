@@ -1,5 +1,5 @@
 @import "tailwindcss";
 
 body {
-  @apply bg-black px-6 py-8;
+  @apply bg-black;
 }

@@ -29,21 +29,54 @@ function ProtectedRoute({ element }: { element: React.ReactElement }) {
 
 function App() {
   const { user, isAuthenticated, isLoading, loginWithRedirect } = useAuth0();
-  const { dataLoaded, avatar, toast, dismissToast } = useApp();
+  const { dataLoaded, avatar, toast, dismissToast, goals } = useApp();
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Content to render inside <main> for the "/" route
-  const homeElement = () => {
-    if (isLoading) return null;
-    if (!isAuthenticated) return <Landing />;
-    if (!dataLoaded) return (
-      <div className="flex items-center justify-center py-32">
-        <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+  // ── Full-page cream routes (outside dark nav wrapper) ──────────────────────
+  const onHome      = location.pathname === "/";
+  const onNewGoal   = location.pathname === "/goals/new";
+  const isGuest     = !isAuthenticated && goals.length === 0;
+
+  // Landing
+  if (onHome && (isLoading || isGuest)) {
+    if (isLoading) return <div className="min-h-screen bg-[#F9F9F9]" />;
+    return <Landing />;
+  }
+
+  // Goal creation — cream wrapper, no dark nav
+  if (onNewGoal) {
+    if (isLoading || !dataLoaded) return <div className="min-h-screen bg-[#F9F9F9]" />;
+    return (
+      <div className="min-h-screen bg-[#F9F9F9] text-black flex flex-col">
+        <header className="flex items-center justify-between px-6 sm:px-10 py-5 border-b border-black/6 shrink-0">
+          <Link to="/" className="text-lg font-bold tracking-tight text-black">OnTrack</Link>
+          {!isAuthenticated && (
+            <button onClick={() => loginWithRedirect()} className="text-sm text-black/40 hover:text-black transition-colors">
+              log in →
+            </button>
+          )}
+        </header>
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-lg mx-auto px-6 py-6 pb-24">
+            <CreateGoal />
+          </div>
+        </div>
+        {toast && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border border-black/10 bg-white shadow-xl text-sm text-black">
+            <span>{toast.message}</span>
+            {toast.action && (
+              <button onClick={() => { navigate(toast.action!.href); dismissToast(); }}
+                className="shrink-0 px-3 py-1.5 bg-black text-white text-xs font-medium rounded-full hover:bg-black/80 transition-colors">
+                {toast.action.label}
+              </button>
+            )}
+            <button onClick={dismissToast} className="shrink-0 text-black/30 hover:text-black text-lg leading-none">✕</button>
+          </div>
+        )}
       </div>
     );
-    return <GoalsOverview />;
-  };
+  }
 
   const userInitials = user
     ? (user.name || user.email || "?")
@@ -54,10 +87,20 @@ function App() {
         .slice(0, 2)
     : "";
 
+  // Home element for authenticated users or guests who already made a goal
+  const homeElement = () => {
+    if (!dataLoaded) return (
+      <div className="flex items-center justify-center py-32">
+        <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+    return <GoalsOverview />;
+  };
+
   return (
     <div className="min-h-screen text-white">
       {/* Sticky nav */}
-      <nav className="border-b border-gray-800/60 bg-gray-950/90 backdrop-blur-md sticky top-0 z-10">
+      <nav className="border-b border-white/6 bg-black/90 backdrop-blur-md sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 flex items-center justify-between h-13">
 
           {/* Left: logo + nav links */}
@@ -108,9 +151,9 @@ function App() {
             ) : (
               <button
                 onClick={() => loginWithRedirect()}
-                className="px-3 py-1.5 text-sm bg-indigo-600 rounded-lg hover:bg-indigo-500 transition-colors"
+                className="px-3 py-1.5 text-sm bg-white text-black rounded-full hover:bg-gray-100 transition-colors font-medium"
               >
-                Log in
+                Sign up
               </button>
             )}
           </div>
@@ -121,10 +164,10 @@ function App() {
       <main className="max-w-4xl mx-auto px-4 py-8">
         <Routes>
           <Route path="/" element={homeElement()} />
-          <Route path="/goals/new" element={<ProtectedRoute element={dataLoaded ? <CreateGoal /> : <></>} />} />
+          {/* /goals/new is handled by the cream early-return above — no route needed here */}
           <Route path="/goals/:id"  element={<ProtectedRoute element={dataLoaded ? <CreateGoal /> : <></>} />} />
           <Route path="/today"      element={<ProtectedRoute element={dataLoaded ? <Today />    : <></>} />} />
-          <Route path="/calendar"   element={<ProtectedRoute element={dataLoaded ? <Calendar />  : <></>} />} />
+          <Route path="/calendar"   element={dataLoaded ? <Calendar /> : <></>} />
           <Route path="/profile"    element={<ProtectedRoute element={dataLoaded ? <Profile />   : <></>} />} />
           <Route path="/recap"      element={<ProtectedRoute element={dataLoaded ? <Recap /> : <></>} />} />
           <Route path="/account"    element={<ProtectedRoute element={<Account />} />} />

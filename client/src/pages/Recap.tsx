@@ -164,7 +164,7 @@ export default function Recap() {
     return (
       <div className="max-w-2xl pb-20">
         <h1 className="text-xl font-bold mb-4">Weekly Recap</h1>
-        <p className="text-gray-500 text-sm">No plan to recap yet. Generate a plan first.</p>
+        <p className="text-white/40 text-sm">No plan to recap yet. Generate a plan first.</p>
       </div>
     );
   }
@@ -173,14 +173,14 @@ export default function Recap() {
     <div className="max-w-2xl pb-20">
       <div className="mb-8">
         <h1 className="text-xl font-bold text-white">Weekly Recap</h1>
-        {rangeLabel && <p className="text-sm text-gray-500 mt-0.5">{rangeLabel}</p>}
+        {rangeLabel && <p className="text-sm text-white/40 mt-0.5">{rangeLabel}</p>}
         {!isPlanStale && (
           <p className="text-xs text-amber-400/80 mt-2">Your week isn't over yet — you can still complete tasks before generating next week.</p>
         )}
       </div>
 
       {/* Completion summary */}
-      <div className="rounded-xl border border-gray-800 bg-gray-900/40 p-5 mb-4 flex items-center gap-6">
+      <div className="rounded-2xl border border-white/8 bg-white/[0.04] p-5 mb-4 flex items-center gap-6">
         {/* Ring */}
         <div className="relative w-20 h-20 shrink-0">
           <svg viewBox="0 0 36 36" className="w-20 h-20 -rotate-90">
@@ -198,9 +198,9 @@ export default function Recap() {
           </div>
         </div>
         <div>
-          <p className="text-2xl font-bold text-white">{completedCount}<span className="text-gray-500 text-lg font-normal">/{totalCount}</span></p>
-          <p className="text-sm text-gray-400">tasks completed</p>
-          <p className="text-xs text-gray-600 mt-1">
+          <p className="text-2xl font-bold text-white">{completedCount}<span className="text-white/40 text-lg font-normal">/{totalCount}</span></p>
+          <p className="text-sm text-white/50">tasks completed</p>
+          <p className="text-xs text-white/30 mt-1">
             {completionPct >= 80 ? "Great week — consider increasing intensity." :
              completionPct >= 50 ? "Solid effort. See what you can adjust." :
              "Tough week. Consider reducing volume next week."}
@@ -214,10 +214,10 @@ export default function Recap() {
           const dayTotal = day.blocks.reduce((s, b) => s + b.tasks.length, 0);
           const dayDone = day.blocks.reduce((s, b) => s + b.tasks.filter(t => t.completed).length, 0);
           return (
-            <div key={day.date} className="rounded-xl border border-gray-800 bg-gray-900/40 overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-gray-800/60 flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-300">{day.label}</span>
-                <span className={`text-xs tabular-nums ${dayDone === dayTotal ? "text-emerald-400" : "text-gray-500"}`}>
+            <div key={day.date} className="rounded-2xl border border-white/8 bg-white/[0.04] overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-white/8/60 flex items-center justify-between">
+                <span className="text-sm font-medium text-white/70">{day.label}</span>
+                <span className={`text-xs tabular-nums ${dayDone === dayTotal ? "text-emerald-400" : "text-white/40"}`}>
                   {dayDone}/{dayTotal}
                 </span>
               </div>
@@ -232,7 +232,7 @@ export default function Recap() {
                           <button
                             onClick={() => toggleBlockComplete(day.dayIdx, block.blockIdx)}
                             className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                              allDone ? "bg-emerald-600 border-emerald-600" : someDone ? "border-indigo-500 bg-indigo-900/40" : "border-gray-700 hover:border-gray-500"
+                              allDone ? "bg-emerald-600 border-emerald-600" : someDone ? "border-indigo-500 bg-indigo-900/40" : "border-white/10 hover:border-gray-500"
                             }`}
                           >
                             {allDone && (
@@ -244,18 +244,18 @@ export default function Recap() {
                           </button>
                         );
                       })()}
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{block.label}</span>
+                      <span className="text-xs font-semibold text-white/40 uppercase tracking-wide">{block.label}</span>
                     </div>
                     {block.tasks.map((task, ti) => {
                       const taskKey = `${day.date}-${bi}-${ti}`;
                       const isExpanded = expandedTask === taskKey;
                       return (
                         <div key={ti}>
-                          <div className="px-4 py-2 flex items-center gap-3 hover:bg-gray-800/30 transition-colors">
+                          <div className="px-4 py-2 flex items-center gap-3 hover:bg-white/6/30 transition-colors">
                             <button
                               onClick={() => toggleTaskComplete(day.dayIdx, block.blockIdx, task.taskIdx)}
                               className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                                task.completed ? "bg-emerald-600 border-emerald-600" : "border-gray-700 hover:border-gray-500"
+                                task.completed ? "bg-emerald-600 border-emerald-600" : "border-white/10 hover:border-gray-500"
                               }`}
                             >
                               {task.completed && (
@@ -268,19 +268,19 @@ export default function Recap() {
                               onClick={() => task.description && setExpandedTask(isExpanded ? null : taskKey)}
                               className={`flex-1 flex items-center gap-2 text-left ${task.description ? "cursor-pointer" : "cursor-default"}`}
                             >
-                              <span className={`text-sm flex-1 ${task.completed ? "text-gray-500 line-through" : "text-gray-300"}`}>
+                              <span className={`text-sm flex-1 ${task.completed ? "text-white/40 line-through" : "text-white/70"}`}>
                                 {task.title}
                               </span>
-                              <span className="text-xs text-gray-700 tabular-nums shrink-0">{task.estimated_minutes}m</span>
+                              <span className="text-xs text-white/20 tabular-nums shrink-0">{task.estimated_minutes}m</span>
                               {task.description && (
-                                <svg className={`w-3.5 h-3.5 text-gray-600 shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg className={`w-3.5 h-3.5 text-white/30 shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                 </svg>
                               )}
                             </button>
                           </div>
                           {isExpanded && task.description && (
-                            <p className="px-4 pb-3 text-xs text-gray-500 leading-relaxed pl-11">
+                            <p className="px-4 pb-3 text-xs text-white/40 leading-relaxed pl-11">
                               {task.description}
                             </p>
                           )}
@@ -296,11 +296,11 @@ export default function Recap() {
       </div>
 
       {/* Notes for the AI */}
-      <div className="rounded-xl border border-gray-800 bg-gray-900/40 p-5 mb-4">
+      <div className="rounded-2xl border border-white/8 bg-white/[0.04] p-5 mb-4">
         <h2 className="text-sm font-semibold text-white mb-1">How did the week go?</h2>
-        <p className="text-xs text-gray-500 mb-3">Optional — this gets sent to the AI to shape next week's plan.</p>
+        <p className="text-xs text-white/40 mb-3">Optional — this gets sent to the AI to shape next week's plan.</p>
         <textarea
-          className="w-full px-3 py-2.5 border border-gray-700 rounded-lg bg-gray-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-colors placeholder:text-gray-600 resize-none min-h-[90px]"
+          className="w-full px-3 py-2.5 border border-white/10 rounded-lg bg-white/4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-colors placeholder:text-white/30 resize-none min-h-[90px]"
           placeholder="e.g. The sessions felt too long, I kept skipping gym days, guitar is going well…"
           value={notes}
           onChange={e => setNotes(e.target.value)}
