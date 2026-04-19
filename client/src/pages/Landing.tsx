@@ -46,49 +46,6 @@ function useInView(ref: React.RefObject<HTMLElement | null>, threshold = 0.25) {
   return seen;
 }
 
-// ── Typewriter ───────────────────────────────────────────────────────────────
-
-const GOALS = [
-  "learn guitar 🎸",
-  "run a half marathon 🏃",
-  "speak spanish 🌍",
-  "write every morning ✍︎",
-  "get stronger 💪",
-  "draw every day 🎨",
-];
-
-function Typewriter() {
-  const [i, setI] = useState(0);
-  const [sub, setSub] = useState("");
-  const [phase, setPhase] = useState<"type"|"hold"|"erase">("type");
-
-  useEffect(() => {
-    const word = GOALS[i % GOALS.length];
-    let t: ReturnType<typeof setTimeout>;
-    if (phase === "type") {
-      if (sub.length < word.length) t = setTimeout(() => setSub(word.slice(0, sub.length + 1)), 70);
-      else t = setTimeout(() => setPhase("hold"), 50);
-    } else if (phase === "hold") {
-      t = setTimeout(() => setPhase("erase"), 1200);
-    } else {
-      if (sub.length > 0) t = setTimeout(() => setSub(sub.slice(0, -1)), 35);
-      else { setPhase("type"); setI((v) => v + 1); }
-    }
-    return () => clearTimeout(t);
-  }, [sub, phase, i]);
-
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center" }}>
-      <span>{sub}</span>
-      <span style={{
-        display: "inline-block", width: 2, height: "0.9em",
-        background: V.accent, marginLeft: 4,
-        animation: "blink 1s step-end infinite",
-      }} />
-    </span>
-  );
-}
-
 // ── Wordmark ─────────────────────────────────────────────────────────────────
 
 const LETTERS = [
