@@ -11,7 +11,28 @@
       "Bash(npx tsc:*)",
       "Bash(npm run:*)",
       "Bash(sed:*)",
-      "Bash(./node_modules/.bin/tsc --noEmit -p tsconfig.app.json)"
+      "Bash(./node_modules/.bin/tsc --noEmit -p tsconfig.app.json)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(npm install:*)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(open:*)",
+      "mcp__figma-remote-mcp__get_screenshot",
+      "mcp__figma-remote-mcp__use_figma",
+      "Bash(npm uninstall:*)",
+      "Bash(node --check src/index.js)",
+      "Bash(node --check src/middleware/auth.js)",
+      "Bash(node --check src/routes/userData.js)",
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(cp \"/Users/angelodelafuente/.claude/projects/-Users-angelodelafuente-Desktop-OnTrack/88d40cb0-94a5-43e0-b216-0e73b5dc17fe/tool-results/webfetch-1776626949735-5cr2oe.bin\" /tmp/landing.gz)",
+      "Bash(gunzip -c /tmp/landing.gz)",
+      "Bash(tar -t)",
+      "Bash(grep -E \"\\\\.\\(jsx|html|css|md\\)$\")",
+      "Bash(tar -xO \"ontrack/project/app.jsx\")",
+      "Bash(tar -xO \"ontrack/project/sections.jsx\")",
+      "Bash(tar -xO \"ontrack/project/visuals.jsx\")"
     ]
   }
 }

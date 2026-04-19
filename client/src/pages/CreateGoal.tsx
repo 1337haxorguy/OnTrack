@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useApp, DAYS } from "../context/AppContext";
-import { useAuth0 } from "@auth0/auth0-react";
+import { useAuth } from "../context/AuthContext";
 import type { Goal, FollowupQuestion, DayPlan, QuestionType } from "../context/AppContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE;
@@ -59,6 +59,135 @@ const fieldLabel = "text-xs font-medium text-black/40";
 const fieldHint  = "text-xs text-black/25 -mt-3";
 
 // ---- Shared sub-components ----
+
+function QuestionInput({
+  fq, index, updateAnswer, inputCls,
+}: {
+  fq: FollowupQuestion;
+  index: number;
+  updateAnswer: (i: number, v: string) => void;
+  inputCls: string;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="text-sm font-medium text-black/60">
+        {index + 1}. {fq.question}
+      </label>
+
+      {/* Boolean */}
+      {fq.type === "boolean" && (
+        <div className="flex gap-2">
+          {["Yes", "No"].map(opt => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => updateAnswer(index, fq.user_response === opt ? "" : opt)}
+              className={`px-5 py-2 rounded-xl border text-sm font-medium transition-all ${
+                fq.user_response === opt
+                  ? "bg-black/8 border-black/30 text-black"
+                  : "bg-white border-black/10 text-black/40 hover:border-black/25 hover:text-black/70"
+              }`}
+            >{opt}</button>
+          ))}
+        </div>
+      )}
+
+      {/* Multiple choice (single select) */}
+      {fq.type === "multiple_choice" && (
+        <div className="flex flex-col gap-2">
+          {(fq.options ?? []).map(opt => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => updateAnswer(index, fq.user_response === opt ? "" : opt)}
+              className={`w-full px-4 py-3 rounded-xl border text-sm text-left transition-all flex items-center gap-3 ${
+                fq.user_response === opt
+                  ? "bg-black/8 border-black/30 text-black font-medium"
+                  : "bg-white border-black/8 text-black/50 hover:border-black/20 hover:text-black/80"
+              }`}
+            >
+              <span className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-all ${
+                fq.user_response === opt ? "border-black" : "border-black/20"
+              }`}>
+                {fq.user_response === opt && <span className="w-2 h-2 rounded-full bg-black" />}
+              </span>
+              {opt}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Multi select */}
+      {fq.type === "multi_select" && (
+        <div className="flex flex-col gap-2">
+          {(fq.options ?? []).map(opt => {
+            const selected = fq.user_response.split(",").map(s => s.trim()).filter(Boolean).includes(opt);
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => {
+                  const current = fq.user_response.split(",").map(s => s.trim()).filter(Boolean);
+                  const next = selected ? current.filter(s => s !== opt) : [...current, opt];
+                  updateAnswer(index, next.join(", "));
+                }}
+                className={`w-full px-4 py-3 rounded-xl border text-sm text-left transition-all flex items-center gap-3 ${
+                  selected
+                    ? "bg-black/8 border-black/30 text-black font-medium"
+                    : "bg-white border-black/8 text-black/50 hover:border-black/20 hover:text-black/80"
+                }`}
+              >
+                <span className={`w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center transition-all ${
+                  selected ? "border-black bg-black" : "border-black/20"
+                }`}>
+                  {selected && (
+                    <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 8" fill="none">
+                      <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </span>
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Scale 1–5 */}
+      {fq.type === "scale" && (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex gap-2">
+            {[1, 2, 3, 4, 5].map(n => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => updateAnswer(index, fq.user_response === String(n) ? "" : String(n))}
+                className={`w-10 h-10 rounded-xl border text-sm font-semibold transition-all ${
+                  fq.user_response === String(n)
+                    ? "bg-black border-black text-white"
+                    : "bg-white border-black/10 text-black/40 hover:border-black/25 hover:text-black/70"
+                }`}
+              >{n}</button>
+            ))}
+          </div>
+          <div className="flex justify-between text-xs text-black/25 px-1">
+            <span>Not at all</span><span>Very much</span>
+          </div>
+        </div>
+      )}
+
+      {/* Open ended */}
+      {(!fq.type || fq.type === "open_ended") && (
+        <input
+          className={inputCls}
+          placeholder="Your answer… (optional)"
+          value={fq.user_response}
+          onChange={(e) => updateAnswer(index, e.target.value)}
+        />
+      )}
+    </div>
+  );
+}
 
 function SkillLevelPicker({ value, onChange }: { value: Goal["skill_level"]; onChange: (v: Goal["skill_level"]) => void }) {
   return (
@@ -381,7 +510,7 @@ function timeAgo(iso: string): string {
 
 export default function CreateGoal() {
   const { goals, setGoals, schedule, setPlan, showToast } = useApp();
-  const { isAuthenticated, getAccessTokenSilently, loginWithRedirect } = useAuth0();
+  const { isAuthenticated, getToken, openAuthModal } = useAuth();
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditing = !!id;
@@ -535,7 +664,7 @@ export default function CreateGoal() {
     try {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (isAuthenticated) {
-        const token = await getAccessTokenSilently().catch(() => null);
+        const token = await getToken().catch(() => null);
         if (token) headers["Authorization"] = `Bearer ${token}`;
       }
       const totalHours = allGoals.reduce((s, g) => s + g.hours_per_week, 0);
@@ -555,8 +684,12 @@ export default function CreateGoal() {
         time_blocks: day.time_blocks.map((b) => ({ ...b, id: crypto.randomUUID() })),
       }));
       setPlan(planWithIds);
-      navigate("/");
-      showToast({ message: "Your plan is ready!", action: { label: "View calendar →", href: "/calendar" } });
+      if (!isAuthenticated) {
+        navigate("/", { state: { showSave: true } });
+      } else {
+        navigate("/");
+        showToast({ message: "Your plan is ready!", action: { label: "View calendar →", href: "/calendar" } });
+      }
     } catch (e: unknown) {
       setGenerateError(e instanceof Error ? e.message : "Failed to generate plan");
       setGenerating(false);
@@ -634,7 +767,7 @@ export default function CreateGoal() {
     try {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (isAuthenticated) {
-        const token = await getAccessTokenSilently().catch(() => null);
+        const token = await getToken().catch(() => null);
         if (token) headers["Authorization"] = `Bearer ${token}`;
       }
       const res = await fetch(`${API_BASE}/api/generate`, {
@@ -736,17 +869,9 @@ export default function CreateGoal() {
           {form.followup_questions.length > 0 && (
             <section className={cardCls}>
               <h2 className="text-sm font-semibold text-black">Personalisation</h2>
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-5">
                 {form.followup_questions.map((fq, i) => (
-                  <div key={i} className="flex flex-col gap-1.5">
-                    <label className={fieldLabel}>{fq.question}</label>
-                    <input
-                      className={inputCls}
-                      placeholder="Your answer…"
-                      value={fq.user_response}
-                      onChange={(e) => updateAnswer(i, e.target.value)}
-                    />
-                  </div>
+                  <QuestionInput key={i} fq={fq} index={i} updateAnswer={updateAnswer} inputCls={inputCls} />
                 ))}
               </div>
             </section>
@@ -915,7 +1040,7 @@ export default function CreateGoal() {
         <div className="mb-6 flex items-center justify-between gap-4 px-4 py-3 rounded-2xl border border-black/8 bg-white text-sm shadow-sm">
           <span className="text-black/40">Sign up to save your goals and plan.</span>
           <button
-            onClick={() => loginWithRedirect()}
+            onClick={() => openAuthModal("signup")}
             className="shrink-0 px-4 py-1.5 bg-black text-white text-xs font-semibold rounded-full hover:bg-black/80 transition-colors"
           >
             Sign up free
@@ -924,7 +1049,7 @@ export default function CreateGoal() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-5">
         <button
           onClick={() => {
             if (step > 1) return setStep((s) => (s - 1) as 1 | 2 | 3);
@@ -935,19 +1060,53 @@ export default function CreateGoal() {
         >
           ← {step > 1 ? "Back" : "Home"}
         </button>
-        <span className="text-xs text-black/30 font-medium">Step {step} of 3</span>
       </div>
 
-      {/* Step progress bar — iOS segmented capsule style */}
-      <div className="flex gap-1.5 mb-8">
-        {[1, 2, 3].map((s) => (
-          <div
-            key={s}
-            className={`h-1 flex-1 rounded-full transition-all duration-300 ${
-              s <= step ? "bg-white" : "bg-white/10"
-            }`}
-          />
-        ))}
+      {/* Named step track */}
+      <div className="flex items-center w-full max-w-xs mx-auto mb-7">
+        {([
+          { n: 1, label: "Your Goal"   },
+          { n: 2, label: "Schedule"    },
+          { n: 3, label: "Personalise" },
+        ] as const).map(({ n, label }, idx) => {
+          const completed = n < step;
+          const active    = n === step;
+          return (
+            <div key={n} className="flex items-center flex-1 last:flex-none">
+              {/* Node + label */}
+              <div className="flex flex-col items-center gap-1">
+                <div
+                  className={`w-5 h-5 rounded-full flex items-center justify-center transition-all duration-300 ${
+                    completed || active
+                      ? "bg-black"
+                      : "bg-white border border-black/10"
+                  }`}
+                >
+                  {completed ? (
+                    <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 8" fill="none">
+                      <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  ) : (
+                    <span className={`text-[9px] font-bold leading-none ${active ? "text-white" : "text-black/30"}`}>
+                      {n}
+                    </span>
+                  )}
+                </div>
+                <span className={`text-[10px] leading-none transition-colors duration-200 ${
+                  active ? "text-black font-semibold" : "text-black/30"
+                }`}>
+                  {label}
+                </span>
+              </div>
+              {/* Connector line (not after last node) */}
+              {idx < 2 && (
+                <div className={`flex-1 h-px mx-1.5 mb-3 transition-colors duration-300 ${
+                  n < step ? "bg-black" : "bg-black/10"
+                }`} />
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* ---- Step 1: Your Goal ---- */}
@@ -957,6 +1116,11 @@ export default function CreateGoal() {
             <h1 className="text-3xl font-bold tracking-tight text-black mb-1">What do you want to achieve?</h1>
             <p className="text-sm text-black/40">Be specific — the more detail, the better your plan.</p>
           </div>
+
+          {/* Orientation hint */}
+          <p className="text-xs text-black/30 italic text-center">
+            OnTrack is built for long-term growth — skills and habits you want to genuinely develop over weeks and months.
+          </p>
 
           {/* Title input */}
           <div className="flex flex-col gap-1.5">
@@ -1098,7 +1262,7 @@ export default function CreateGoal() {
           </div>
 
           <div className="flex justify-between items-center">
-            <button onClick={() => setStep(1)} className="px-4 py-2.5 text-sm text-gray-500 hover:text-white transition-colors">
+            <button onClick={() => setStep(1)} className="px-4 py-2.5 text-sm text-black/40 hover:text-black transition-colors">
               ← Back
             </button>
             <button
@@ -1130,8 +1294,8 @@ export default function CreateGoal() {
               <div className="flex flex-col gap-3">
                 {[1, 2, 3].map((n) => (
                   <div key={n} className="flex flex-col gap-2 animate-pulse">
-                    <div className="h-3.5 bg-gray-800 rounded w-3/4" />
-                    <div className="h-9 bg-gray-800/60 rounded-lg w-full" />
+                    <div className="h-3.5 bg-black/8 rounded w-3/4" />
+                    <div className="h-9 bg-black/5 rounded-lg w-full" />
                   </div>
                 ))}
               </div>
@@ -1142,107 +1306,7 @@ export default function CreateGoal() {
             {!qLoading && form.followup_questions.length > 0 && (
               <div className="flex flex-col gap-5">
                 {form.followup_questions.map((fq, i) => (
-                  <div key={i} className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-black/60">
-                      {i + 1}. {fq.question}
-                    </label>
-                    {/* Boolean */}
-                    {fq.type === "boolean" && (
-                      <div className="flex gap-2">
-                        {["Yes", "No"].map(opt => (
-                          <button
-                            key={opt}
-                            type="button"
-                            onClick={() => updateAnswer(i, fq.user_response === opt ? "" : opt)}
-                            className={`px-5 py-2 rounded-lg border text-sm font-medium transition-all ${
-                              fq.user_response === opt
-                                ? "bg-black/8 border-black/30 text-black"
-                                : "bg-white border-black/10 text-black/40 hover:border-black/25 hover:text-black/70"
-                            }`}
-                          >{opt}</button>
-                        ))}
-                      </div>
-                    )}
-                    {/* Multiple choice */}
-                    {fq.type === "multiple_choice" && (
-                      <div className="flex flex-wrap gap-2">
-                        {(fq.options ?? []).map(opt => (
-                          <button
-                            key={opt}
-                            type="button"
-                            onClick={() => updateAnswer(i, fq.user_response === opt ? "" : opt)}
-                            className={`px-3 py-1.5 rounded-lg border text-sm transition-all ${
-                              fq.user_response === opt
-                                ? "bg-black/8 border-black/30 text-black"
-                                : "bg-white border-black/10 text-black/40 hover:border-black/25 hover:text-black/70"
-                            }`}
-                          >{opt}</button>
-                        ))}
-                      </div>
-                    )}
-                    {/* Multi select */}
-                    {fq.type === "multi_select" && (
-                      <div className="flex flex-wrap gap-2">
-                        {(fq.options ?? []).map(opt => {
-                          const selected = fq.user_response.split(",").map(s => s.trim()).filter(Boolean).includes(opt);
-                          return (
-                            <button
-                              key={opt}
-                              type="button"
-                              onClick={() => {
-                                const current = fq.user_response.split(",").map(s => s.trim()).filter(Boolean);
-                                const next = selected ? current.filter(s => s !== opt) : [...current, opt];
-                                updateAnswer(i, next.join(", "));
-                              }}
-                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm transition-all ${
-                                selected
-                                  ? "bg-indigo-600/20 border-indigo-500/60 text-indigo-300"
-                                  : "bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200"
-                              }`}
-                            >
-                              {selected && (
-                                <svg className="w-3 h-3 shrink-0" viewBox="0 0 10 8" fill="none">
-                                  <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
-                              )}
-                              {opt}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                    {/* Scale 1–5 */}
-                    {fq.type === "scale" && (
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex gap-2">
-                          {[1, 2, 3, 4, 5].map(n => (
-                            <button
-                              key={n}
-                              type="button"
-                              onClick={() => updateAnswer(i, fq.user_response === String(n) ? "" : String(n))}
-                              className={`w-10 h-10 rounded-xl border text-sm font-semibold transition-all ${
-                                fq.user_response === String(n)
-                                  ? "bg-black border-black text-white"
-                                  : "bg-white border-black/10 text-black/40 hover:border-black/25 hover:text-black/70"
-                              }`}
-                            >{n}</button>
-                          ))}
-                        </div>
-                        <div className="flex justify-between text-xs text-black/25 px-1">
-                          <span>Not at all</span><span>Very much</span>
-                        </div>
-                      </div>
-                    )}
-                    {/* Open ended */}
-                    {(!fq.type || fq.type === "open_ended") && (
-                      <input
-                        className={inputCls}
-                        placeholder="Your answer… (optional)"
-                        value={fq.user_response}
-                        onChange={(e) => updateAnswer(i, e.target.value)}
-                      />
-                    )}
-                  </div>
+                  <QuestionInput key={i} fq={fq} index={i} updateAnswer={updateAnswer} inputCls={inputCls} />
                 ))}
               </div>
             )}
@@ -1299,8 +1363,8 @@ export default function CreateGoal() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-400">Background & context</label>
-              <p className="text-xs text-gray-600">Current level, deadlines, sub-goals — anything that should shape your plan</p>
+              <label className="text-xs font-medium text-black/40">Background & context</label>
+              <p className="text-xs text-black/30">Current level, deadlines, sub-goals — anything that should shape your plan</p>
               <textarea
                 className={`${inputCls} resize-y`}
                 rows={3}
@@ -1321,7 +1385,7 @@ export default function CreateGoal() {
                 You haven&apos;t set your availability yet — tasks will be scheduled at default times.{" "}
                 <button
                   onClick={() => navigate("/profile")}
-                  className="underline hover:text-amber-200 transition-colors"
+                  className="underline hover:text-amber-900 transition-colors"
                 >
                   Set it now
                 </button>{" "}

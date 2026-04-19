@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import type { DayPlan, TimeBlock } from "../context/AppContext";
-import { useAuth0 } from "@auth0/auth0-react";
+import { useAuth } from "../context/AuthContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE;
 
@@ -131,7 +131,7 @@ interface DragState {
 // ---- Component ----
 export default function Calendar() {
   const { goals, setGoals, schedule, plan, setPlan } = useApp();
-  const { isAuthenticated, getAccessTokenSilently } = useAuth0();
+  const { isAuthenticated, getToken } = useAuth();
 
   useEffect(() => { document.title = "Calendar — OnTrack"; }, []);
 
@@ -288,7 +288,7 @@ export default function Calendar() {
   const authHeaders = async (): Promise<Record<string, string>> => {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (isAuthenticated) {
-      const token = await getAccessTokenSilently().catch(() => null);
+      const token = await getToken().catch(() => null);
       if (token) headers["Authorization"] = `Bearer ${token}`;
     }
     return headers;
@@ -635,18 +635,18 @@ export default function Calendar() {
     }
 
     return (
-      <div key={dateStr} className={`${widthClass} relative border-l border-white/10/40`}>
+      <div key={dateStr} className={`${widthClass} relative border-l border-black/6`}>
         {HOURS.map((h) => (
           <div
             key={h}
-            className="absolute left-0 right-0 border-t border-white/8/70"
+            className="absolute left-0 right-0 border-t border-black/[0.06]"
             style={{ top: `${(h - START_HOUR) * HOUR_HEIGHT}px` }}
           />
         ))}
         {HOURS.map((h) => (
           <div
             key={`${h}-half`}
-            className="absolute left-0 right-0 border-t border-white/8/30"
+            className="absolute left-0 right-0 border-t border-black/[0.03]"
             style={{ top: `${(h - START_HOUR) * HOUR_HEIGHT + HOUR_HEIGHT / 2}px` }}
           />
         ))}
@@ -737,7 +737,7 @@ export default function Calendar() {
           );
         })()}
 
-        {isToday && <div className="absolute inset-0 bg-indigo-950/10 pointer-events-none" />}
+        {isToday && <div className="absolute inset-0 bg-black/[0.02] pointer-events-none" />}
         {isToday && currentTimeTop > 0 && currentTimeTop < HOURS.length * HOUR_HEIGHT && (
           <div
             className="absolute left-0 right-0 z-10 flex items-center pointer-events-none"
@@ -759,21 +759,21 @@ export default function Calendar() {
           return (
             <div
               key={block.id}
-              className={`absolute left-1 right-1 rounded-md px-1.5 py-1 text-left overflow-hidden select-none cursor-grab transition-opacity ${
+              className={`absolute left-1 right-1 rounded-lg px-1.5 py-1 text-left overflow-hidden select-none cursor-grab transition-all ${
                 isSelected
-                  ? `ring-2 z-10 ${allDone ? "bg-emerald-700 ring-emerald-400/40" : "bg-indigo-500 ring-indigo-300/40"}`
+                  ? `ring-1 z-10 ${allDone ? "bg-emerald-500/15 border border-emerald-500/25 ring-emerald-600/20" : "bg-black/10 border border-black/20 ring-black/10"}`
                   : allDone
-                    ? "bg-emerald-800/80 hover:bg-emerald-700/80 z-[5]"
-                    : "bg-indigo-600/85 hover:bg-indigo-500 z-[5]"
-              } ${isDragging ? "opacity-30" : ""}`}
+                    ? "bg-emerald-500/10 border border-emerald-500/15 hover:bg-emerald-500/15 z-[5]"
+                    : "bg-black/[0.05] border border-black/8 hover:bg-black/[0.08] z-[5]"
+              } ${isDragging ? "opacity-25" : ""}`}
               style={{ top: `${top}px`, height: `${height}px` }}
               onPointerDown={(e) =>
                 handleBlockPointerDown(e, block, entry!.dayPlan, entry!.dayIdx, blockIdx, dateStr)
               }
             >
-              <p className="text-[11px] font-semibold text-white leading-tight truncate">{block.label}</p>
+              <p className="text-[11px] font-semibold text-black leading-tight truncate">{block.label}</p>
               {height > 30 && block.start_time && block.end_time && (
-                <p className="text-[10px] text-indigo-200 leading-tight">
+                <p className="text-[10px] text-black/35 leading-tight">
                   {formatTime(block.start_time)} – {formatTime(block.end_time)}
                 </p>
               )}
@@ -782,7 +782,7 @@ export default function Calendar() {
                 const total = block.tasks.length;
                 if (done === 0) return null;
                 return (
-                  <p className={`text-[9px] leading-tight mt-0.5 ${done === total ? "text-emerald-300" : "text-indigo-300/70"}`}>
+                  <p className={`text-[9px] leading-tight mt-0.5 ${done === total ? "text-emerald-600" : "text-black/30"}`}>
                     {done === total ? "✓ Done" : `${done}/${total} done`}
                   </p>
                 );
@@ -802,12 +802,12 @@ export default function Calendar() {
           const ghostHeight = Math.max(((ghostEnd - ghostStart) / 60) * HOUR_HEIGHT, 22);
           return (
             <div
-              className="absolute left-1 right-1 rounded-md px-1.5 py-1 bg-indigo-500/30 border-2 border-indigo-400 border-dashed z-20 pointer-events-none"
+              className="absolute left-1 right-1 rounded-lg px-1.5 py-1 bg-black/[0.05] border border-black/20 border-dashed z-20 pointer-events-none"
               style={{ top: `${ghostTop}px`, height: `${ghostHeight}px` }}
             >
-              <p className="text-[11px] font-semibold text-indigo-200 leading-tight truncate">{drag.block.label}</p>
+              <p className="text-[11px] font-semibold text-black/60 leading-tight truncate">{drag.block.label}</p>
               {ghostHeight > 30 && (
-                <p className="text-[10px] text-indigo-300 leading-tight">
+                <p className="text-[10px] text-black/35 leading-tight">
                   {formatTime(minsToTime(ghostStart))} – {formatTime(minsToTime(ghostEnd))}
                 </p>
               )}
@@ -821,21 +821,21 @@ export default function Calendar() {
                 key={block.id}
                 className={`rounded px-1.5 py-0.5 text-left transition-colors ${
                   selectedEvent?.dayIdx === entry!.dayIdx && selectedEvent?.blockIdx === blockIdx
-                    ? "bg-violet-500"
-                    : "bg-violet-600/80 hover:bg-violet-500"
+                    ? "bg-black/10 border border-black/20"
+                    : "bg-black/[0.05] border border-black/8 hover:bg-black/[0.08]"
                 }`}
                 onClick={() => {
                   setSelectedEvent({ dayPlan: entry!.dayPlan, dayIdx: entry!.dayIdx, block, blockIdx });
                   setModalMode("detail");
                 }}
               >
-                <p className="text-[10px] font-medium text-white truncate">{block.label}</p>
+                <p className="text-[10px] font-medium text-black truncate">{block.label}</p>
                 {block.tasks.length > 0 && (() => {
                   const done = block.tasks.filter((t) => t.completed).length;
                   const total = block.tasks.length;
                   if (done === 0) return null;
                   return (
-                    <p className={`text-[9px] leading-tight ${done === total ? "text-emerald-300" : "text-violet-300/70"}`}>
+                    <p className={`text-[9px] leading-tight ${done === total ? "text-emerald-600" : "text-black/30"}`}>
                       {done === total ? "✓ Done" : `${done}/${total}`}
                     </p>
                   );
@@ -854,7 +854,7 @@ export default function Calendar() {
       {HOURS.map((h) => (
         <div
           key={h}
-          className="absolute right-2 text-[10px] text-white/30 tabular-nums"
+          className="absolute right-2 text-[10px] text-black/25 tabular-nums"
           style={{ top: `${(h - START_HOUR) * HOUR_HEIGHT - 7}px` }}
         >
           {formatHour(h)}
@@ -867,11 +867,11 @@ export default function Calendar() {
   if (goals.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-32 text-center">
-        <h2 className="text-xl font-bold mb-2">No goals set up yet</h2>
-        <p className="text-white/50 mb-6">Create a goal first, then generate your plan.</p>
+        <h2 className="text-xl font-bold text-black mb-2">No goals set up yet</h2>
+        <p className="text-black/40 mb-6 text-sm">Create a goal first, then generate your plan.</p>
         <Link
           to="/goals/new"
-          className="px-5 py-2.5 bg-indigo-600 rounded-lg text-white hover:bg-indigo-700 transition-colors"
+          className="px-5 py-2.5 bg-black text-white rounded-full text-sm hover:bg-black/80 transition-colors font-medium"
         >
           Create a goal
         </Link>
@@ -888,45 +888,45 @@ export default function Calendar() {
   return (
     <>
       <div
-        className="flex flex-col rounded-xl border border-white/10/60 overflow-hidden bg-gray-950"
+        className="flex flex-col rounded-xl border border-black/8 overflow-hidden bg-white shadow-sm"
         style={{ height: "calc(100vh - 120px)" }}
       >
         {/* ---- Toolbar ---- */}
-        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/10/60 bg-black/80 shrink-0">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-black/8 shrink-0">
           <button
             onClick={() => navigate(-1)}
-            className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-700 text-white/50 hover:text-white transition-colors text-lg leading-none"
+            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-black/5 text-black/30 hover:text-black transition-colors text-lg leading-none"
           >
             ‹
           </button>
           <button
             onClick={() => navigate(1)}
-            className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-700 text-white/50 hover:text-white transition-colors text-lg leading-none"
+            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-black/5 text-black/30 hover:text-black transition-colors text-lg leading-none"
           >
             ›
           </button>
           <button
             onClick={() => { setViewDate(new Date()); }}
-            className="px-2.5 py-1 text-xs border border-gray-600 rounded hover:bg-gray-700 text-gray-300 transition-colors"
+            className="px-2.5 py-1 text-xs border border-black/10 rounded-full text-black/40 hover:text-black hover:border-black/20 transition-colors"
           >
             Today
           </button>
-          <h2 className="text-sm font-semibold text-white flex-1 ml-1">
+          <h2 className="text-sm font-semibold text-black flex-1 ml-1">
             {formatViewLabel(view, viewDate)}
           </h2>
 
-          {error && <span className="text-xs text-red-400 mr-1">{error}</span>}
+          {error && <span className="text-xs text-red-500 mr-1">{error}</span>}
 
           {/* View toggle */}
-          <div className="flex border border-gray-600 rounded-lg overflow-hidden text-xs">
+          <div className="flex border border-black/10 rounded-full overflow-hidden text-xs">
             {(["day", "week", "month"] as CalendarView[]).map((v) => (
               <button
                 key={v}
                 onClick={() => setView(v)}
-                className={`px-2.5 py-1.5 capitalize transition-colors ${
+                className={`px-3 py-1.5 capitalize transition-colors ${
                   view === v
-                    ? "bg-indigo-600 text-white"
-                    : "text-white/50 hover:text-white hover:bg-gray-700"
+                    ? "bg-black text-white font-medium"
+                    : "text-black/40 hover:text-black"
                 }`}
               >
                 {v}
@@ -935,7 +935,7 @@ export default function Calendar() {
           </div>
 
           <button
-            className="ml-1 px-3 py-1.5 text-xs border border-gray-600 rounded-lg bg-gray-800 hover:bg-gray-700 disabled:opacity-50 transition-colors"
+            className="ml-1 px-3 py-1.5 text-xs border border-black/10 rounded-full text-black/50 hover:text-black hover:border-black/20 disabled:opacity-40 transition-colors"
             onClick={generate}
             disabled={loading}
           >
@@ -945,7 +945,7 @@ export default function Calendar() {
 
         {/* ---- Day-of-week header (day + week views) ---- */}
         {view !== "month" && (
-          <div className="flex shrink-0 border-b border-white/10/60 bg-black/60">
+          <div className="flex shrink-0 border-b border-black/8">
             <div className="w-14 shrink-0" />
             {(view === "week" ? weekDays : [viewDate]).map((d, i) => {
               const dateStr = toDateStr(d);
@@ -955,20 +955,20 @@ export default function Calendar() {
               return (
                 <button
                   key={i}
-                  className="flex-1 flex flex-col items-center py-2 border-l border-white/10/40 hover:bg-gray-800/40 transition-colors"
+                  className="flex-1 flex flex-col items-center py-2 border-l border-black/6 hover:bg-black/[0.02] transition-colors"
                   onClick={() => goToDay(d)}
                   title="Switch to day view"
                 >
                   <span
                     className={`text-[10px] font-semibold uppercase tracking-widest ${
-                      isToday ? "text-indigo-400" : "text-white/40"
+                      isToday ? "text-black" : "text-black/30"
                     }`}
                   >
                     {label}
                   </span>
                   <span
                     className={`mt-0.5 text-base font-bold w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
-                      isToday ? "bg-indigo-600 text-white" : hasPlan ? "text-white" : "text-white/30"
+                      isToday ? "bg-black text-white" : hasPlan ? "text-black" : "text-black/20"
                     }`}
                   >
                     {d.getDate()}
@@ -984,40 +984,40 @@ export default function Calendar() {
 
           {/* Loading overlay */}
           {loading && (
-            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-gray-950/70 gap-3">
-              <div className="w-7 h-7 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm text-white/50">Generating your plan…</span>
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm gap-3">
+              <div className="w-7 h-7 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+              <span className="text-sm text-black/40">Generating your plan…</span>
             </div>
           )}
 
           {/* No-plan overlay */}
           {!plan && !loading && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-950/60 backdrop-blur-sm">
-              <div className="bg-black/90 border border-white/10 rounded-xl p-8 text-center shadow-2xl max-w-xs mx-4">
-                <div className="w-12 h-12 rounded-xl bg-indigo-600/20 border border-indigo-600/30 flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-6 h-6 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#F9F9F9]/80 backdrop-blur-sm">
+              <div className="bg-white border border-black/8 rounded-2xl p-8 text-center shadow-xl max-w-xs mx-4">
+                <div className="w-12 h-12 rounded-2xl bg-black/5 border border-black/8 flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-6 h-6 text-black/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
                   </svg>
                 </div>
                 {goals.length === 0 ? (
                   <>
-                    <h3 className="text-base font-semibold mb-1.5">No goals yet</h3>
-                    <p className="text-sm text-white/50 mb-4">Create a goal first, then generate your weekly plan.</p>
+                    <h3 className="text-base font-semibold text-black mb-1.5">No goals yet</h3>
+                    <p className="text-sm text-black/40 mb-4">Create a goal first, then generate your weekly plan.</p>
                     <Link
                       to="/goals/new"
-                      className="inline-block px-5 py-2.5 bg-indigo-600 rounded-lg text-sm text-white hover:bg-indigo-700 transition-colors"
+                      className="inline-block px-5 py-2.5 bg-black text-white rounded-full text-sm font-medium hover:bg-black/80 transition-colors"
                     >
                       Create a goal →
                     </Link>
                   </>
                 ) : (
                   <>
-                    <h3 className="text-base font-semibold mb-1.5">Calendar is empty</h3>
-                    <p className="text-sm text-white/50 mb-4">
+                    <h3 className="text-base font-semibold text-black mb-1.5">Calendar is empty</h3>
+                    <p className="text-sm text-black/40 mb-4">
                       Generate a weekly plan from your {goals.length} goal{goals.length !== 1 && "s"} to fill in your week.
                     </p>
                     <button
-                      className="px-5 py-2.5 bg-indigo-600 rounded-lg text-sm text-white hover:bg-indigo-700 transition-colors"
+                      className="px-5 py-2.5 bg-black text-white rounded-full text-sm font-medium hover:bg-black/80 transition-colors"
                       onClick={generate}
                     >
                       Generate Plan
@@ -1052,11 +1052,11 @@ export default function Calendar() {
           {view === "month" && (
             <div className="h-full flex flex-col overflow-hidden">
               {/* Day-of-week header */}
-              <div className="grid grid-cols-7 shrink-0 border-b border-white/10/60 bg-black/60">
+              <div className="grid grid-cols-7 shrink-0 border-b border-black/8">
                 {DAY_LABELS.map((label) => (
                   <div
                     key={label}
-                    className="py-2 text-center text-[10px] font-semibold uppercase tracking-widest text-white/40"
+                    className="py-2 text-center text-[10px] font-semibold uppercase tracking-widest text-black/30"
                   >
                     {label}
                   </div>
@@ -1068,7 +1068,7 @@ export default function Calendar() {
                 {monthGrid.map((week, wi) => (
                   <div
                     key={wi}
-                    className="flex-1 grid grid-cols-7 border-t border-white/10/30 min-h-0"
+                    className="flex-1 grid grid-cols-7 border-t border-black/6 min-h-0"
                   >
                     {week.map((d, di) => {
                       const dateStr = toDateStr(d);
@@ -1081,7 +1081,7 @@ export default function Calendar() {
                       return (
                         <div
                           key={di}
-                          className={`border-r border-white/10/30 p-1.5 overflow-hidden flex flex-col gap-0.5 ${
+                          className={`border-r border-black/6 p-1.5 overflow-hidden flex flex-col gap-0.5 ${
                             di === 0 ? "border-l-0" : ""
                           } ${isCurrentMonth ? "" : "opacity-40"}`}
                         >
@@ -1094,8 +1094,8 @@ export default function Calendar() {
                             <span
                               className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full transition-colors ${
                                 isToday
-                                  ? "bg-indigo-600 text-white"
-                                  : "text-white/50 hover:text-white hover:bg-gray-700"
+                                  ? "bg-black text-white"
+                                  : "text-black/40 hover:text-black hover:bg-black/5"
                               }`}
                             >
                               {d.getDate()}
@@ -1106,7 +1106,7 @@ export default function Calendar() {
                           {allBlocks.slice(0, MAX_CHIPS).map((block) => (
                             <button
                               key={block.id}
-                              className="w-full rounded px-1 py-0.5 text-left bg-indigo-600/75 hover:bg-indigo-500 transition-colors overflow-hidden"
+                              className="w-full rounded px-1 py-0.5 text-left bg-black/[0.05] border border-black/8 hover:bg-black/[0.08] transition-colors overflow-hidden"
                               onClick={() => {
                                 setSelectedEvent({
                                   dayPlan: entry!.dayPlan,
@@ -1117,7 +1117,7 @@ export default function Calendar() {
                                 setModalMode("detail");
                               }}
                             >
-                              <p className="text-[10px] font-medium text-white truncate leading-tight">
+                              <p className="text-[10px] font-medium text-black truncate leading-tight">
                                 {block.start_time ? formatTime(block.start_time) + " " : ""}
                                 {block.label}
                               </p>
@@ -1125,7 +1125,7 @@ export default function Calendar() {
                           ))}
                           {allBlocks.length > MAX_CHIPS && (
                             <button
-                              className="text-[10px] text-white/40 hover:text-gray-300 text-left px-1 transition-colors"
+                              className="text-[10px] text-black/30 hover:text-black/60 text-left px-1 transition-colors"
                               onClick={() => goToDay(d)}
                             >
                               +{allBlocks.length - MAX_CHIPS} more
@@ -1148,11 +1148,11 @@ export default function Calendar() {
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
           onClick={(e) => { if (e.target === e.currentTarget) { setSelectedEvent(null); setModalMode("detail"); setTaskModalMode({}); setTaskModalEdit({}); setPendingSave(null); } }}
         >
-          <div className="absolute inset-0 bg-black/50" onClick={() => { setSelectedEvent(null); setModalMode("detail"); setTaskModalMode({}); setTaskModalEdit({}); setPendingSave(null); }} />
-          <div className="relative bg-black/90 border border-white/10 rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
+          <div className="absolute inset-0 bg-black/20" onClick={() => { setSelectedEvent(null); setModalMode("detail"); setTaskModalMode({}); setTaskModalEdit({}); setPendingSave(null); }} />
+          <div className="relative bg-white border border-black/8 rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
 
             {/* Header */}
-            <div className="flex items-start justify-between p-4 border-b border-white/10/80">
+            <div className="flex items-start justify-between p-4 border-b border-black/8">
               <div>
                 <div className="flex items-center gap-2 mb-0.5">
                   {(() => {
@@ -1163,7 +1163,7 @@ export default function Calendar() {
                       <button
                         onClick={() => toggleBlockComplete(selectedEvent.dayIdx, selectedEvent.blockIdx)}
                         className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                          allDone ? "bg-emerald-600 border-emerald-600" : someDone ? "border-indigo-500 bg-indigo-900/40" : "border-gray-500 hover:border-gray-300"
+                          allDone ? "bg-emerald-600 border-emerald-600" : someDone ? "border-black/30 bg-black/5" : "border-black/20 hover:border-black/40"
                         }`}
                       >
                         {allDone && (
@@ -1171,18 +1171,18 @@ export default function Calendar() {
                             <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         )}
-                        {someDone && <div className="w-1.5 h-0.5 bg-indigo-400 rounded-full" />}
+                        {someDone && <div className="w-1.5 h-0.5 bg-black/40 rounded-full" />}
                       </button>
                     );
                   })()}
-                  <h3 className="font-semibold text-white leading-tight">{selectedEvent.block.label}</h3>
+                  <h3 className="font-semibold text-black leading-tight">{selectedEvent.block.label}</h3>
                 </div>
                 {selectedEvent.block.start_time && selectedEvent.block.end_time && (
-                  <p className="text-sm text-white/50 ml-4">
+                  <p className="text-sm text-black/40 ml-4">
                     {formatTime(selectedEvent.block.start_time)} – {formatTime(selectedEvent.block.end_time)}
                   </p>
                 )}
-                <p className="text-xs text-white/40 mt-1 ml-4">
+                <p className="text-xs text-black/30 mt-1 ml-4">
                   {new Date(selectedEvent.dayPlan.date + "T00:00:00").toLocaleDateString("en-US", {
                     weekday: "long",
                     month: "long",
@@ -1192,7 +1192,7 @@ export default function Calendar() {
               </div>
               <button
                 onClick={() => { setSelectedEvent(null); setModalMode("detail"); setTaskModalMode({}); setTaskModalEdit({}); setPendingSave(null); }}
-                className="p-1 rounded hover:bg-gray-700 text-white/40 hover:text-white transition-colors text-lg leading-none"
+                className="p-1 rounded-full hover:bg-black/5 text-black/25 hover:text-black transition-colors text-lg leading-none"
               >
                 ✕
               </button>
@@ -1204,20 +1204,20 @@ export default function Calendar() {
                 <>
                   {/* Save-to-goal banner */}
                   {pendingSave && (
-                    <div className="mb-4 rounded-lg border border-amber-700/40 bg-amber-950/30 p-3 flex flex-col gap-2">
-                      <p className="text-xs font-semibold text-amber-300">Save this preference to a goal?</p>
-                      <p className="text-xs text-amber-200/60 italic">"{pendingSave.feedback}"</p>
+                    <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 flex flex-col gap-2">
+                      <p className="text-xs font-semibold text-amber-800">Save this preference to a goal?</p>
+                      <p className="text-xs text-amber-700/60 italic">"{pendingSave.feedback}"</p>
                       <div className="flex items-center gap-2 flex-wrap">
                         {goals.length > 1 && (
                           <select
-                            className="px-2 py-1 border border-white/10 rounded-lg bg-black/90 text-white text-xs focus:outline-none cursor-pointer"
+                            className="px-2 py-1 border border-black/10 rounded-lg bg-white text-black text-xs focus:outline-none cursor-pointer"
                             value={pendingSave.goalId}
                             onChange={e => setPendingSave(prev => prev ? { ...prev, goalId: e.target.value } : null)}
                           >
                             {goals.map(g => <option key={g.id} value={g.id}>{g.title}</option>)}
                           </select>
                         )}
-                        {goals.length === 1 && <span className="text-xs text-white/50">→ <span className="text-white">{goals[0].title}</span></span>}
+                        {goals.length === 1 && <span className="text-xs text-black/40">→ <span className="text-black">{goals[0].title}</span></span>}
                         <button
                           onClick={() => {
                             if (!pendingSave) return;
@@ -1232,16 +1232,16 @@ export default function Calendar() {
                         >
                           Save
                         </button>
-                        <button onClick={() => setPendingSave(null)} className="text-xs text-white/40 hover:text-white transition-colors">Dismiss</button>
+                        <button onClick={() => setPendingSave(null)} className="text-xs text-black/40 hover:text-black transition-colors">Dismiss</button>
                       </div>
                     </div>
                   )}
 
-                  <div className="mb-4 p-3 rounded-lg bg-gray-800/60 border border-white/10/50">
-                    <p className="text-[10px] font-semibold text-white/40 uppercase tracking-widest mb-1">
+                  <div className="mb-4 p-3 rounded-lg bg-black/[0.03] border border-black/8">
+                    <p className="text-[10px] font-semibold text-black/30 uppercase tracking-widest mb-1">
                       Day Objective
                     </p>
-                    <p className="text-sm text-gray-300 leading-relaxed">{selectedEvent.dayPlan.objective}</p>
+                    <p className="text-sm text-black/60 leading-relaxed">{selectedEvent.dayPlan.objective}</p>
                   </div>
                   <div className="flex flex-col gap-2">
                     {(plan?.[selectedEvent.dayIdx]?.time_blocks[selectedEvent.blockIdx]?.tasks ?? selectedEvent.block.tasks).map((task, ti) => {
@@ -1250,11 +1250,11 @@ export default function Calendar() {
                       return (
                         <div key={ti} className="group">
                           {tMode !== "edit" && (
-                            <div className={`border-l-2 pl-3 transition-colors ${task.completed ? "border-emerald-600/60" : "border-indigo-500/60"}`}>
+                            <div className={`border-l-2 pl-3 transition-colors ${task.completed ? "border-emerald-600/60" : "border-black/20"}`}>
                               <div className="flex items-center gap-2 flex-wrap">
                                 <button
                                   onClick={() => toggleTaskComplete(selectedEvent.dayIdx, selectedEvent.blockIdx, ti)}
-                                  className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${task.completed ? "bg-emerald-600 border-emerald-600" : "border-gray-500 hover:border-indigo-400"}`}
+                                  className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${task.completed ? "bg-emerald-600 border-emerald-600" : "border-black/20 hover:border-black/40"}`}
                                 >
                                   {task.completed && (
                                     <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 8" fill="none">
@@ -1262,41 +1262,41 @@ export default function Calendar() {
                                     </svg>
                                   )}
                                 </button>
-                                <span className={`text-sm font-medium flex-1 transition-colors ${task.completed ? "text-white/40 line-through" : "text-white"}`}>{task.title}</span>
-                                <span className="text-[10px] text-white/40 bg-gray-800 px-1.5 py-0.5 rounded tabular-nums">{task.estimated_minutes} min</span>
+                                <span className={`text-sm font-medium flex-1 transition-colors ${task.completed ? "text-black/30 line-through" : "text-black"}`}>{task.title}</span>
+                                <span className="text-[10px] text-black/30 bg-black/5 px-1.5 py-0.5 rounded-full tabular-nums">{task.estimated_minutes} min</span>
                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <button
                                     onClick={() => {
                                       setTaskModalEdit(prev => ({ ...prev, [ti]: { title: task.title, description: task.description, estimated_minutes: task.estimated_minutes } }));
                                       setTaskModalMode(prev => ({ ...prev, [ti]: "edit" }));
                                     }}
-                                    className="px-1.5 py-0.5 text-[10px] border border-white/10 text-white/50 hover:text-white hover:border-gray-500 rounded transition-colors"
+                                    className="px-1.5 py-0.5 text-[10px] border border-black/10 text-black/40 hover:text-black hover:border-black/20 rounded-full transition-colors"
                                   >
                                     Edit
                                   </button>
                                   <button
                                     onClick={() => setTaskModalMode(prev => ({ ...prev, [ti]: tMode === "regen" ? null : "regen" }))}
-                                    className={`px-1.5 py-0.5 text-[10px] border rounded transition-colors ${tMode === "regen" ? "border-indigo-600/50 text-indigo-400" : "border-white/10 text-white/50 hover:text-white hover:border-gray-500"}`}
+                                    className={`px-1.5 py-0.5 text-[10px] border rounded-full transition-colors ${tMode === "regen" ? "border-black/20 bg-black/[0.05] text-black" : "border-black/10 text-black/40 hover:text-black hover:border-black/20"}`}
                                   >
                                     Regen
                                   </button>
                                 </div>
                               </div>
-                              <p className={`text-xs mt-0.5 leading-relaxed transition-colors ${task.completed ? "text-white/30 line-through" : "text-white/50"}`}>{task.description}</p>
+                              <p className={`text-xs mt-0.5 leading-relaxed transition-colors ${task.completed ? "text-black/25 line-through" : "text-black/40"}`}>{task.description}</p>
                             </div>
                           )}
 
                           {/* Inline edit */}
                           {tMode === "edit" && (
-                            <div className="flex flex-col gap-2 p-3 bg-gray-800/50 rounded-lg border border-white/10/50">
+                            <div className="flex flex-col gap-2 p-3 bg-black/[0.02] rounded-lg border border-black/8">
                               <input
-                                className="w-full px-2.5 py-1.5 border border-white/10 rounded-lg bg-black/90 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                                className="w-full px-2.5 py-1.5 border border-black/10 rounded-lg bg-white text-sm text-black focus:outline-none focus:ring-1 focus:ring-black/15 placeholder:text-black/25"
                                 value={editVals.title}
                                 onChange={e => setTaskModalEdit(prev => ({ ...prev, [ti]: { ...editVals, title: e.target.value } }))}
                                 placeholder="Task title"
                               />
                               <textarea
-                                className="w-full px-2.5 py-1.5 border border-white/10 rounded-lg bg-black/90 text-xs text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none min-h-[50px]"
+                                className="w-full px-2.5 py-1.5 border border-black/10 rounded-lg bg-white text-xs text-black/60 focus:outline-none focus:ring-1 focus:ring-black/15 resize-none min-h-[50px] placeholder:text-black/25"
                                 value={editVals.description}
                                 onChange={e => setTaskModalEdit(prev => ({ ...prev, [ti]: { ...editVals, description: e.target.value } }))}
                                 placeholder="Description"
@@ -1304,14 +1304,14 @@ export default function Calendar() {
                               <div className="flex items-center gap-2">
                                 <input
                                   type="number" min={1}
-                                  className="w-16 px-2 py-1.5 border border-white/10 rounded-lg bg-black/90 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                                  className="w-16 px-2 py-1.5 border border-black/10 rounded-lg bg-white text-sm text-black focus:outline-none focus:ring-1 focus:ring-black/15"
                                   value={editVals.estimated_minutes}
                                   onChange={e => setTaskModalEdit(prev => ({ ...prev, [ti]: { ...editVals, estimated_minutes: parseInt(e.target.value) || 0 } }))}
                                 />
-                                <span className="text-xs text-white/40">min</span>
+                                <span className="text-xs text-black/35">min</span>
                                 <div className="flex gap-2 ml-auto">
-                                  <button onClick={() => saveSelectedTaskEdit(ti)} className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 rounded text-xs text-white font-medium transition-colors">Save</button>
-                                  <button onClick={() => { setTaskModalMode(prev => ({ ...prev, [ti]: null })); setTaskModalEdit(prev => { const n = { ...prev }; delete n[ti]; return n; }); }} className="px-2.5 py-1 text-xs text-white/40 hover:text-white transition-colors">Cancel</button>
+                                  <button onClick={() => saveSelectedTaskEdit(ti)} className="px-2.5 py-1 bg-black text-white hover:bg-black/80 rounded-full text-xs font-medium transition-colors">Save</button>
+                                  <button onClick={() => { setTaskModalMode(prev => ({ ...prev, [ti]: null })); setTaskModalEdit(prev => { const n = { ...prev }; delete n[ti]; return n; }); }} className="px-2.5 py-1 text-xs text-black/40 hover:text-black transition-colors">Cancel</button>
                                 </div>
                               </div>
                             </div>
@@ -1319,9 +1319,9 @@ export default function Calendar() {
 
                           {/* Per-task regen */}
                           {tMode === "regen" && (
-                            <div className="mt-1 ml-3 p-2.5 bg-indigo-950/30 border border-indigo-900/40 rounded-lg flex flex-col gap-2">
+                            <div className="mt-1 ml-3 p-2.5 bg-black/[0.02] border border-black/8 rounded-lg flex flex-col gap-2">
                               <textarea
-                                className="w-full px-2.5 py-1.5 border border-white/10 rounded-lg bg-black/90 text-white text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none min-h-[50px] placeholder:text-white/30"
+                                className="w-full px-2.5 py-1.5 border border-black/10 rounded-lg bg-white text-black text-xs focus:outline-none focus:ring-1 focus:ring-black/15 resize-none min-h-[50px] placeholder:text-black/25"
                                 placeholder="e.g. Make it easier, less weight, different focus…"
                                 value={taskModalFeedback[ti] || ""}
                                 onChange={e => setTaskModalFeedback(prev => ({ ...prev, [ti]: e.target.value }))}
@@ -1330,12 +1330,12 @@ export default function Calendar() {
                                 <button
                                   onClick={() => regenerateSelectedTask(ti)}
                                   disabled={taskModalRegen[ti]}
-                                  className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 rounded text-xs text-white font-medium disabled:opacity-50 transition-colors"
+                                  className="flex items-center gap-1.5 px-2.5 py-1 bg-black text-white hover:bg-black/80 rounded-full text-xs font-medium disabled:opacity-50 transition-colors"
                                 >
                                   {taskModalRegen[ti] && <span className="w-2.5 h-2.5 border border-white/40 border-t-white rounded-full animate-spin" />}
                                   {taskModalRegen[ti] ? "Regenerating…" : "Regenerate"}
                                 </button>
-                                <button onClick={() => setTaskModalMode(prev => ({ ...prev, [ti]: null }))} className="text-xs text-white/40 hover:text-white transition-colors">Cancel</button>
+                                <button onClick={() => setTaskModalMode(prev => ({ ...prev, [ti]: null }))} className="text-xs text-black/40 hover:text-black transition-colors">Cancel</button>
                               </div>
                             </div>
                           )}
@@ -1348,9 +1348,9 @@ export default function Calendar() {
 
               {modalMode === "regen" && (
                 <div className="flex flex-col gap-3">
-                  <p className="text-sm text-white/50">
+                  <p className="text-sm text-black/40">
                     Regenerate all blocks for{" "}
-                    <span className="text-white font-medium">
+                    <span className="text-black font-medium">
                       {new Date(selectedEvent.dayPlan.date + "T00:00:00").toLocaleDateString("en-US", {
                         weekday: "long",
                         month: "short",
@@ -1360,7 +1360,7 @@ export default function Calendar() {
                     .
                   </p>
                   <textarea
-                    className="p-2.5 border border-gray-600 rounded-lg bg-gray-800 text-white text-sm w-full min-h-[80px] resize-y focus:outline-none focus:border-indigo-500 transition-colors"
+                    className="p-2.5 border border-black/10 rounded-lg bg-[#F9F9F9] text-black text-sm w-full min-h-[80px] resize-y focus:outline-none focus:ring-1 focus:ring-black/15 transition-colors placeholder:text-black/25"
                     placeholder="Optional feedback (e.g. make it harder, focus on barre chords, shorter session…)"
                     value={regenFeedback}
                     onChange={(e) => setRegenFeedback(e.target.value)}
@@ -1368,14 +1368,14 @@ export default function Calendar() {
                   />
                   <div className="flex gap-2">
                     <button
-                      className="px-4 py-2 bg-indigo-600 rounded-lg text-sm text-white hover:bg-indigo-700 disabled:opacity-60 transition-colors"
+                      className="px-4 py-2 bg-black text-white rounded-full text-sm font-medium hover:bg-black/80 disabled:opacity-60 transition-colors"
                       onClick={regenerateDay}
                       disabled={regenLoading}
                     >
                       {regenLoading ? "Regenerating…" : "Regenerate"}
                     </button>
                     <button
-                      className="px-4 py-2 text-sm text-white/50 hover:text-white transition-colors"
+                      className="px-4 py-2 text-sm text-black/40 hover:text-black transition-colors"
                       onClick={() => setModalMode("detail")}
                     >
                       Back
@@ -1386,11 +1386,11 @@ export default function Calendar() {
 
               {modalMode === "regen-block" && (
                 <div className="flex flex-col gap-3">
-                  <p className="text-sm text-white/50">
-                    Regenerate only the <span className="text-white font-medium">"{selectedEvent.block.label}"</span> block.
+                  <p className="text-sm text-black/40">
+                    Regenerate only the <span className="text-black font-medium">"{selectedEvent.block.label}"</span> block.
                   </p>
                   <textarea
-                    className="p-2.5 border border-gray-600 rounded-lg bg-gray-800 text-white text-sm w-full min-h-[80px] resize-y focus:outline-none focus:border-indigo-500 transition-colors"
+                    className="p-2.5 border border-black/10 rounded-lg bg-[#F9F9F9] text-black text-sm w-full min-h-[80px] resize-y focus:outline-none focus:ring-1 focus:ring-black/15 transition-colors placeholder:text-black/25"
                     placeholder="Optional feedback (e.g. less weight, more theory, skip warm-up…)"
                     value={regenBlockFeedback}
                     onChange={(e) => setRegenBlockFeedback(e.target.value)}
@@ -1398,7 +1398,7 @@ export default function Calendar() {
                   />
                   <div className="flex gap-2">
                     <button
-                      className="flex items-center gap-2 px-4 py-2 bg-indigo-600 rounded-lg text-sm text-white hover:bg-indigo-700 disabled:opacity-60 transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-full text-sm font-medium hover:bg-black/80 disabled:opacity-60 transition-colors"
                       onClick={regenerateSelectedBlock}
                       disabled={regenBlockLoading}
                     >
@@ -1406,7 +1406,7 @@ export default function Calendar() {
                       {regenBlockLoading ? "Regenerating…" : "Regenerate block"}
                     </button>
                     <button
-                      className="px-4 py-2 text-sm text-white/50 hover:text-white transition-colors"
+                      className="px-4 py-2 text-sm text-black/40 hover:text-black transition-colors"
                       onClick={() => setModalMode("detail")}
                     >
                       Back
@@ -1417,21 +1417,21 @@ export default function Calendar() {
 
               {modalMode === "reschedule" && (
                 <div className="flex flex-col gap-3">
-                  <p className="text-sm text-white/50">Move this block to a different date or time. The duration stays the same.</p>
+                  <p className="text-sm text-black/40">Move this block to a different date or time. The duration stays the same.</p>
                   <div className="flex flex-wrap gap-3">
-                    <label className="flex flex-col gap-1 text-xs text-white/50">
+                    <label className="flex flex-col gap-1 text-xs text-black/40">
                       Date
                       <input
                         type="date"
-                        className="p-2 border border-gray-600 rounded-lg bg-gray-800 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors"
+                        className="p-2 border border-black/10 rounded-lg bg-[#F9F9F9] text-black text-sm focus:outline-none focus:ring-1 focus:ring-black/15 transition-colors"
                         value={rsDate}
                         onChange={(e) => setRsDate(e.target.value)}
                       />
                     </label>
-                    <label className="flex flex-col gap-1 text-xs text-white/50">
+                    <label className="flex flex-col gap-1 text-xs text-black/40">
                       Start time
                       <select
-                        className="p-2 border border-gray-600 rounded-lg bg-gray-800 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                        className="p-2 border border-black/10 rounded-lg bg-white text-black text-sm focus:outline-none focus:ring-1 focus:ring-black/20 transition-colors cursor-pointer"
                         value={rsStart}
                         onChange={(e) => setRsStart(e.target.value)}
                       >
@@ -1446,9 +1446,9 @@ export default function Calendar() {
                       </select>
                     </label>
                     {selectedEvent?.block.start_time && selectedEvent?.block.end_time && (
-                      <div className="flex flex-col gap-1 text-xs text-white/50">
+                      <div className="flex flex-col gap-1 text-xs text-black/40">
                         Duration
-                        <span className="p-2 border border-white/10 rounded-lg bg-gray-800/50 text-white/40 text-sm">
+                        <span className="p-2 border border-black/10 rounded-lg bg-black/[0.03] text-black/35 text-sm">
                           {timeToMinutes(selectedEvent.block.end_time) - timeToMinutes(selectedEvent.block.start_time)} min
                         </span>
                       </div>
@@ -1456,13 +1456,13 @@ export default function Calendar() {
                   </div>
                   <div className="flex gap-2">
                     <button
-                      className="px-4 py-2 bg-indigo-600 rounded-lg text-sm text-white hover:bg-indigo-700 transition-colors"
+                      className="px-4 py-2 bg-black text-white rounded-full text-sm font-medium hover:bg-black/80 transition-colors"
                       onClick={applyReschedule}
                     >
                       Save
                     </button>
                     <button
-                      className="px-4 py-2 text-sm text-white/50 hover:text-white transition-colors"
+                      className="px-4 py-2 text-sm text-black/40 hover:text-black transition-colors"
                       onClick={() => setModalMode("detail")}
                     >
                       Back
@@ -1474,21 +1474,21 @@ export default function Calendar() {
 
             {/* Footer */}
             {modalMode === "detail" && (
-              <div className="flex items-center gap-2 px-4 py-3 border-t border-white/10/80 bg-black/90/50 flex-wrap">
+              <div className="flex items-center gap-2 px-4 py-3 border-t border-black/8 flex-wrap">
                 <button
-                  className="px-3 py-1.5 text-xs border border-white/10 rounded-lg hover:bg-gray-700 text-white/50 hover:text-white transition-colors"
+                  className="px-3 py-1.5 text-xs border border-black/10 rounded-full hover:bg-black/5 hover:border-black/20 text-black/40 hover:text-black transition-colors"
                   onClick={() => setModalMode("regen-block")}
                 >
                   Regenerate block
                 </button>
                 <button
-                  className="px-3 py-1.5 text-xs border border-white/10 rounded-lg hover:bg-gray-700 text-white/50 hover:text-white transition-colors"
+                  className="px-3 py-1.5 text-xs border border-black/10 rounded-full hover:bg-black/5 hover:border-black/20 text-black/40 hover:text-black transition-colors"
                   onClick={() => setModalMode("regen")}
                 >
                   Regenerate day
                 </button>
                 <button
-                  className="px-3 py-1.5 text-xs border border-white/10 rounded-lg hover:bg-gray-700 text-white/50 hover:text-white transition-colors"
+                  className="px-3 py-1.5 text-xs border border-black/10 rounded-full hover:bg-black/5 hover:border-black/20 text-black/40 hover:text-black transition-colors"
                   onClick={openReschedule}
                 >
                   Reschedule

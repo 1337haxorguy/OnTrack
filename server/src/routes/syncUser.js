@@ -5,10 +5,10 @@ const User = require("../../models/user");
 router.post("/", async (req, res) => {
   try {
     const sub = req.auth.payload.sub;
-    const { email } = req.body;
+    const email = req.auth.payload.email || req.body.email || "";
 
     const user = await User.findOneAndUpdate(
-      { auth0Sub: sub },
+      { sub },
       { $setOnInsert: { email } },
       { upsert: true, new: true }
     );

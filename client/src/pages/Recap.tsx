@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useApp } from "../context/AppContext";
-import { useAuth0 } from "@auth0/auth0-react";
+import { useAuth } from "../context/AuthContext";
 import type { DayPlan } from "../context/AppContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE;
@@ -44,7 +44,7 @@ export default function Recap() {
       )
     );
   };
-  const { isAuthenticated, getAccessTokenSilently } = useAuth0();
+  const { isAuthenticated, getToken } = useAuth();
 
   useEffect(() => { document.title = "Weekly Recap — OnTrack"; }, []);
 
@@ -100,7 +100,7 @@ export default function Recap() {
     try {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (isAuthenticated) {
-        const token = await getAccessTokenSilently().catch(() => null);
+        const token = await getToken().catch(() => null);
         if (token) headers["Authorization"] = `Bearer ${token}`;
       }
 
@@ -163,8 +163,8 @@ export default function Recap() {
   if (!plan || plan.length === 0) {
     return (
       <div className="max-w-2xl pb-20">
-        <h1 className="text-xl font-bold mb-4">Weekly Recap</h1>
-        <p className="text-white/40 text-sm">No plan to recap yet. Generate a plan first.</p>
+        <h1 className="text-xl font-bold text-black mb-4">Weekly Recap</h1>
+        <p className="text-black/40 text-sm">No plan to recap yet. Generate a plan first.</p>
       </div>
     );
   }
@@ -172,35 +172,35 @@ export default function Recap() {
   return (
     <div className="max-w-2xl pb-20">
       <div className="mb-8">
-        <h1 className="text-xl font-bold text-white">Weekly Recap</h1>
-        {rangeLabel && <p className="text-sm text-white/40 mt-0.5">{rangeLabel}</p>}
+        <h1 className="text-xl font-bold text-black">Weekly Recap</h1>
+        {rangeLabel && <p className="text-sm text-black/40 mt-0.5">{rangeLabel}</p>}
         {!isPlanStale && (
-          <p className="text-xs text-amber-400/80 mt-2">Your week isn't over yet — you can still complete tasks before generating next week.</p>
+          <p className="text-xs text-amber-700 mt-2">Your week isn't over yet — you can still complete tasks before generating next week.</p>
         )}
       </div>
 
       {/* Completion summary */}
-      <div className="rounded-2xl border border-white/8 bg-white/[0.04] p-5 mb-4 flex items-center gap-6">
+      <div className="rounded-2xl border border-black/8 bg-white shadow-sm p-5 mb-4 flex items-center gap-6">
         {/* Ring */}
         <div className="relative w-20 h-20 shrink-0">
           <svg viewBox="0 0 36 36" className="w-20 h-20 -rotate-90">
-            <circle cx="18" cy="18" r="15.9" fill="none" stroke="#1f2937" strokeWidth="3" />
+            <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e5e7eb" strokeWidth="3" />
             <circle
               cx="18" cy="18" r="15.9" fill="none"
-              stroke={completionPct >= 80 ? "#22c55e" : completionPct >= 50 ? "#6366f1" : "#f59e0b"}
+              stroke={completionPct >= 80 ? "#22c55e" : completionPct >= 50 ? "#000000" : "#f59e0b"}
               strokeWidth="3"
               strokeDasharray={`${completionPct} ${100 - completionPct}`}
               strokeLinecap="round"
             />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-lg font-bold text-white">{completionPct}%</span>
+            <span className="text-lg font-bold text-black">{completionPct}%</span>
           </div>
         </div>
         <div>
-          <p className="text-2xl font-bold text-white">{completedCount}<span className="text-white/40 text-lg font-normal">/{totalCount}</span></p>
-          <p className="text-sm text-white/50">tasks completed</p>
-          <p className="text-xs text-white/30 mt-1">
+          <p className="text-2xl font-bold text-black">{completedCount}<span className="text-black/40 text-lg font-normal">/{totalCount}</span></p>
+          <p className="text-sm text-black/50">tasks completed</p>
+          <p className="text-xs text-black/30 mt-1">
             {completionPct >= 80 ? "Great week — consider increasing intensity." :
              completionPct >= 50 ? "Solid effort. See what you can adjust." :
              "Tough week. Consider reducing volume next week."}
@@ -214,14 +214,14 @@ export default function Recap() {
           const dayTotal = day.blocks.reduce((s, b) => s + b.tasks.length, 0);
           const dayDone = day.blocks.reduce((s, b) => s + b.tasks.filter(t => t.completed).length, 0);
           return (
-            <div key={day.date} className="rounded-2xl border border-white/8 bg-white/[0.04] overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-white/8/60 flex items-center justify-between">
-                <span className="text-sm font-medium text-white/70">{day.label}</span>
-                <span className={`text-xs tabular-nums ${dayDone === dayTotal ? "text-emerald-400" : "text-white/40"}`}>
+            <div key={day.date} className="rounded-2xl border border-black/8 bg-white shadow-sm overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-black/6 flex items-center justify-between">
+                <span className="text-sm font-medium text-black/60">{day.label}</span>
+                <span className={`text-xs tabular-nums ${dayDone === dayTotal ? "text-emerald-600" : "text-black/30"}`}>
                   {dayDone}/{dayTotal}
                 </span>
               </div>
-              <div className="divide-y divide-gray-800/50">
+              <div className="divide-y divide-black/5">
                 {day.blocks.map((block, bi) => (
                   <div key={bi}>
                     <div className="px-4 pt-2.5 pb-1 flex items-center gap-2">
@@ -232,7 +232,7 @@ export default function Recap() {
                           <button
                             onClick={() => toggleBlockComplete(day.dayIdx, block.blockIdx)}
                             className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                              allDone ? "bg-emerald-600 border-emerald-600" : someDone ? "border-indigo-500 bg-indigo-900/40" : "border-white/10 hover:border-gray-500"
+                              allDone ? "bg-emerald-600 border-emerald-600" : someDone ? "border-black/25 bg-black/5" : "border-black/15 hover:border-black/40"
                             }`}
                           >
                             {allDone && (
@@ -240,22 +240,22 @@ export default function Recap() {
                                 <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                               </svg>
                             )}
-                            {someDone && <div className="w-1.5 h-0.5 bg-indigo-400 rounded-full" />}
+                            {someDone && <div className="w-1.5 h-0.5 bg-black/40 rounded-full" />}
                           </button>
                         );
                       })()}
-                      <span className="text-xs font-semibold text-white/40 uppercase tracking-wide">{block.label}</span>
+                      <span className="text-xs font-semibold text-black/30 uppercase tracking-wide">{block.label}</span>
                     </div>
                     {block.tasks.map((task, ti) => {
                       const taskKey = `${day.date}-${bi}-${ti}`;
                       const isExpanded = expandedTask === taskKey;
                       return (
                         <div key={ti}>
-                          <div className="px-4 py-2 flex items-center gap-3 hover:bg-white/6/30 transition-colors">
+                          <div className="px-4 py-2 flex items-center gap-3 hover:bg-black/[0.02] transition-colors">
                             <button
                               onClick={() => toggleTaskComplete(day.dayIdx, block.blockIdx, task.taskIdx)}
                               className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                                task.completed ? "bg-emerald-600 border-emerald-600" : "border-white/10 hover:border-gray-500"
+                                task.completed ? "bg-emerald-600 border-emerald-600" : "border-black/15 hover:border-black/40"
                               }`}
                             >
                               {task.completed && (
@@ -268,19 +268,19 @@ export default function Recap() {
                               onClick={() => task.description && setExpandedTask(isExpanded ? null : taskKey)}
                               className={`flex-1 flex items-center gap-2 text-left ${task.description ? "cursor-pointer" : "cursor-default"}`}
                             >
-                              <span className={`text-sm flex-1 ${task.completed ? "text-white/40 line-through" : "text-white/70"}`}>
+                              <span className={`text-sm flex-1 ${task.completed ? "text-black/30 line-through" : "text-black/60"}`}>
                                 {task.title}
                               </span>
-                              <span className="text-xs text-white/20 tabular-nums shrink-0">{task.estimated_minutes}m</span>
+                              <span className="text-xs text-black/20 tabular-nums shrink-0">{task.estimated_minutes}m</span>
                               {task.description && (
-                                <svg className={`w-3.5 h-3.5 text-white/30 shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg className={`w-3.5 h-3.5 text-black/25 shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                 </svg>
                               )}
                             </button>
                           </div>
                           {isExpanded && task.description && (
-                            <p className="px-4 pb-3 text-xs text-white/40 leading-relaxed pl-11">
+                            <p className="px-4 pb-3 text-xs text-black/40 leading-relaxed pl-11">
                               {task.description}
                             </p>
                           )}
@@ -296,23 +296,23 @@ export default function Recap() {
       </div>
 
       {/* Notes for the AI */}
-      <div className="rounded-2xl border border-white/8 bg-white/[0.04] p-5 mb-4">
-        <h2 className="text-sm font-semibold text-white mb-1">How did the week go?</h2>
-        <p className="text-xs text-white/40 mb-3">Optional — this gets sent to the AI to shape next week's plan.</p>
+      <div className="rounded-2xl border border-black/8 bg-white shadow-sm p-5 mb-4">
+        <h2 className="text-sm font-semibold text-black mb-1">How did the week go?</h2>
+        <p className="text-xs text-black/40 mb-3">Optional — this gets sent to the AI to shape next week's plan.</p>
         <textarea
-          className="w-full px-3 py-2.5 border border-white/10 rounded-lg bg-white/4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-colors placeholder:text-white/30 resize-none min-h-[90px]"
+          className="w-full px-3 py-2.5 border border-black/10 rounded-lg bg-[#F9F9F9] text-black text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black/25 transition-colors placeholder:text-black/25 resize-none min-h-[90px]"
           placeholder="e.g. The sessions felt too long, I kept skipping gym days, guitar is going well…"
           value={notes}
           onChange={e => setNotes(e.target.value)}
         />
       </div>
 
-      {error && <p className="text-sm text-red-400 mb-3">{error}</p>}
+      {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
 
       <button
         onClick={generateNextWeek}
         disabled={generating || goals.length === 0}
-        className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 rounded-xl text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+        className="w-full py-3 bg-black hover:bg-black/80 rounded-full text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
       >
         {generating && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
         {generating ? "Generating next week…" : "Generate next week →"}

@@ -1,5 +1,5 @@
 import { Routes, Route, Link, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { useAuth0 } from "@auth0/auth0-react";
+import { Target, Sun, CalendarDays, Clock3, BarChart2 } from "lucide-react";
 import GoalsOverview from "./pages/GoalsOverview";
 import CreateGoal from "./pages/CreateGoal";
 import Calendar from "./pages/Calendar";
@@ -9,26 +9,29 @@ import Today from "./pages/Today";
 import Recap from "./pages/Recap";
 import TestGenerate from "./pages/TestGenerate";
 import Landing from "./pages/Landing";
+import OnboardingTour from "./components/OnboardingTour";
+import AuthModal from "./components/AuthModal";
 import { useApp } from "./context/AppContext";
+import { useAuth } from "./context/AuthContext";
 
 const NAV_LINKS = [
-  { to: "/", label: "Goals" },
-  { to: "/today", label: "Today" },
-  { to: "/calendar", label: "Calendar" },
-  { to: "/recap", label: "Recap" },
-  { to: "/profile", label: "Schedule" },
+  { to: "/",         label: "Goals",    icon: Target,      dataTour: "nav-goals"    },
+  { to: "/today",    label: "Today",    icon: Sun,         dataTour: "nav-today"    },
+  { to: "/calendar", label: "Calendar", icon: CalendarDays,dataTour: "nav-calendar" },
+  { to: "/recap",    label: "Recap",    icon: BarChart2,   dataTour: undefined      },
+  { to: "/profile",  label: "Schedule", icon: Clock3,      dataTour: "nav-schedule" },
 ];
 
 // Redirects to "/" if not authenticated
 function ProtectedRoute({ element }: { element: React.ReactElement }) {
-  const { isAuthenticated, isLoading } = useAuth0();
+  const { isAuthenticated, isLoading } = useAuth();
   if (isLoading) return null;
   if (!isAuthenticated) return <Navigate to="/" replace />;
   return element;
 }
 
 function App() {
-  const { user, isAuthenticated, isLoading, loginWithRedirect } = useAuth0();
+  const { user, isAuthenticated, isLoading, openAuthModal } = useAuth();
   const { dataLoaded, avatar, toast, dismissToast, goals } = useApp();
   const location = useLocation();
   const navigate = useNavigate();
@@ -52,7 +55,7 @@ function App() {
         <header className="flex items-center justify-between px-6 sm:px-10 py-5 border-b border-black/6 shrink-0">
           <Link to="/" className="text-lg font-bold tracking-tight text-black">OnTrack</Link>
           {!isAuthenticated && (
-            <button onClick={() => loginWithRedirect()} className="text-sm text-black/40 hover:text-black transition-colors">
+            <button onClick={() => openAuthModal("signin")} className="text-sm text-black/40 hover:text-black transition-colors">
               log in →
             </button>
           )}
@@ -74,12 +77,13 @@ function App() {
             <button onClick={dismissToast} className="shrink-0 text-black/30 hover:text-black text-lg leading-none">✕</button>
           </div>
         )}
+        <AuthModal />
       </div>
     );
   }
 
   const userInitials = user
-    ? (user.name || user.email || "?")
+    ? (user.user_metadata?.full_name || user.email || "?")
         .split(" ")
         .map((w: string) => w[0])
         .join("")
@@ -98,49 +102,59 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen text-white">
+    <div className="min-h-screen text-black">
       {/* Sticky nav */}
-      <nav className="border-b border-white/6 bg-black/90 backdrop-blur-md sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 flex items-center justify-between h-13">
+      <nav className="border-b border-black/[0.06] bg-[#F9F9F9]/95 backdrop-blur-md sticky top-0 z-10">
+        <div className="max-w-5xl mx-auto px-5 flex items-center justify-between h-14">
 
-          {/* Left: logo + nav links */}
-          <div className="flex items-center gap-6">
-            <Link to="/" className="text-sm font-semibold tracking-wide text-white/90 hover:text-white transition-colors">
+          {/* Left: wordmark */}
+          <Link
+            to="/"
+            className="flex items-center gap-1.5 select-none shrink-0 group"
+          >
+            <span className="w-6 h-6 rounded-md bg-black flex items-center justify-center shrink-0 group-hover:bg-black/80 transition-colors">
+              <Target className="w-3.5 h-3.5 text-white" strokeWidth={2.5} />
+            </span>
+            <span className="text-sm font-semibold tracking-tight text-black group-hover:text-black/70 transition-colors">
               OnTrack
-            </Link>
+            </span>
+          </Link>
 
-            {isAuthenticated && (
-              <div className="flex items-center">
-                {NAV_LINKS.map(({ to, label }) => {
-                  const active = location.pathname === to ||
-                    (to === "/" && location.pathname.startsWith("/goals"));
-                  return (
-                    <Link
-                      key={to}
-                      to={to}
-                      className={`relative px-3 py-4 text-sm transition-colors ${
-                        active ? "text-white" : "text-gray-500 hover:text-gray-200"
-                      }`}
-                    >
-                      {label}
-                      {active && (
-                        <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-indigo-500 rounded-full" />
-                      )}
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          {/* Center: nav links */}
+          {!isGuest && (
+            <div className="flex items-center gap-0.5 absolute left-1/2 -translate-x-1/2">
+              {NAV_LINKS.map(({ to, label, icon: Icon, dataTour }) => {
+                const active = location.pathname === to ||
+                  (to === "/" && location.pathname.startsWith("/goals"));
+                return (
+                  <Link
+                    key={to}
+                    to={to}
+                    {...(dataTour ? { "data-tour": dataTour } : {})}
+                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-all duration-150 ${
+                      active
+                        ? "bg-black text-white"
+                        : "text-black/40 hover:text-black hover:bg-black/[0.05]"
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5 shrink-0" strokeWidth={active ? 2.5 : 2} />
+                    <span>{label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
 
           {/* Right: user */}
-          <div className="flex items-center gap-3">
-            {isLoading ? null : isAuthenticated && user ? (
+          <div className="flex items-center gap-3 shrink-0">
+            {isLoading ? (
+              <div className="w-7 h-7 rounded-full bg-black/5 animate-pulse" />
+            ) : isAuthenticated && user ? (
               <Link
                 to="/account"
-                title={user.name || user.email}
-                className={`w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-semibold text-white select-none transition-opacity hover:opacity-80 shrink-0 ${
-                  !avatar ? (location.pathname === "/account" ? "bg-indigo-500" : "bg-indigo-600/80") : ""
+                title={user.user_metadata?.full_name || user.email}
+                className={`w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-semibold text-white select-none transition-all hover:opacity-75 hover:scale-105 shrink-0 ring-2 ring-transparent hover:ring-black/10 ${
+                  !avatar ? "bg-black" : ""
                 }`}
               >
                 {avatar
@@ -150,8 +164,8 @@ function App() {
               </Link>
             ) : (
               <button
-                onClick={() => loginWithRedirect()}
-                className="px-3 py-1.5 text-sm bg-white text-black rounded-full hover:bg-gray-100 transition-colors font-medium"
+                onClick={() => openAuthModal("signup")}
+                className="px-3.5 py-1.5 text-sm bg-black text-white rounded-full hover:bg-black/80 transition-colors font-medium"
               >
                 Sign up
               </button>
@@ -161,7 +175,7 @@ function App() {
       </nav>
 
       {/* Page content */}
-      <main className="max-w-4xl mx-auto px-4 py-8">
+      <main className="max-w-5xl mx-auto px-5 py-8">
         <Routes>
           <Route path="/" element={homeElement()} />
           {/* /goals/new is handled by the cream early-return above — no route needed here */}
@@ -175,21 +189,27 @@ function App() {
         </Routes>
       </main>
 
+      {/* Onboarding tour */}
+      <OnboardingTour />
+
+      {/* Auth modal */}
+      <AuthModal />
+
       {/* Global toast */}
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-700 bg-gray-900 shadow-2xl shadow-black/40 text-sm text-white animate-in">
-          <span className="text-gray-200">{toast.message}</span>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border border-black/10 bg-white shadow-xl text-sm text-black animate-in">
+          <span className="text-black/70">{toast.message}</span>
           {toast.action && (
             <button
               onClick={() => { navigate(toast.action!.href); dismissToast(); }}
-              className="shrink-0 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white text-xs font-medium transition-colors"
+              className="shrink-0 px-3 py-1.5 bg-black hover:bg-black/80 rounded-full text-white text-xs font-medium transition-colors"
             >
               {toast.action.label}
             </button>
           )}
           <button
             onClick={dismissToast}
-            className="shrink-0 text-gray-500 hover:text-white transition-colors text-lg leading-none"
+            className="shrink-0 text-black/25 hover:text-black transition-colors text-lg leading-none"
           >
             ✕
           </button>

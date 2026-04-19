@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useApp } from "../context/AppContext";
-import { useAuth0 } from "@auth0/auth0-react";
+import { useAuth } from "../context/AuthContext";
 import type { DayPlan, TimeBlock } from "../context/AppContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE;
@@ -31,7 +31,7 @@ function formatTime(t: string): string {
 
 export default function Today() {
   const { goals, setGoals, schedule, plan, setPlan } = useApp();
-  const { isAuthenticated, getAccessTokenSilently } = useAuth0();
+  const { isAuthenticated, getToken } = useAuth();
 
   useEffect(() => { document.title = "Today — OnTrack"; }, []);
 
@@ -39,6 +39,9 @@ export default function Today() {
   const [regenError, setRegenError]       = useState("");
   const [feedback, setFeedback]           = useState("");
   const [showFeedback, setShowFeedback]   = useState(false);
+  const [showTodayHint, setShowTodayHint] = useState(
+    () => localStorage.getItem("ontrack_today_hint") !== "1"
+  );
   // Per-block regen state
   const [blockFeedback, setBlockFeedback] = useState<Record<number, string>>({});
   const [blockRegen, setBlockRegen]       = useState<Record<number, boolean>>({});
@@ -62,7 +65,7 @@ export default function Today() {
   const authHeaders = async (): Promise<Record<string, string>> => {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (isAuthenticated) {
-      const token = await getAccessTokenSilently().catch(() => null);
+      const token = await getToken().catch(() => null);
       if (token) headers["Authorization"] = `Bearer ${token}`;
     }
     return headers;
@@ -294,33 +297,33 @@ export default function Today() {
     const hasGoals = goals.length > 0;
     return (
       <div className="flex flex-col items-center justify-center py-32 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-indigo-600/20 border border-indigo-600/30 flex items-center justify-center mb-5">
-          <svg className="w-8 h-8 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <div className="w-16 h-16 rounded-2xl bg-white border border-black/8 shadow-sm flex items-center justify-center mb-5">
+          <svg className="w-8 h-8 text-black/25" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
           </svg>
         </div>
         {hasGoals ? (
           <>
-            <h2 className="text-xl font-bold mb-2">No plan generated yet</h2>
-            <p className="text-white/50 mb-6 text-sm max-w-xs leading-relaxed">
-              You have {goals.length} goal{goals.length !== 1 && "s"} set up. Head to Goals and hit <span className="text-white font-medium">Generate Plan</span> to get your week scheduled.
+            <h2 className="text-xl font-bold text-black mb-2">No plan generated yet</h2>
+            <p className="text-black/40 mb-6 text-sm max-w-xs leading-relaxed">
+              You have {goals.length} goal{goals.length !== 1 && "s"} set up. Head to Goals and hit <span className="text-black font-medium">Generate Plan</span> to get your week scheduled.
             </p>
             <Link
               to="/"
-              className="px-5 py-2.5 bg-indigo-600 rounded-lg text-white text-sm hover:bg-indigo-700 transition-colors"
+              className="px-5 py-2.5 bg-black text-white rounded-full text-sm font-medium hover:bg-black/80 transition-colors"
             >
               Generate my plan →
             </Link>
           </>
         ) : (
           <>
-            <h2 className="text-xl font-bold mb-2">No goals yet</h2>
-            <p className="text-white/50 mb-6 text-sm max-w-xs leading-relaxed">
+            <h2 className="text-xl font-bold text-black mb-2">No goals yet</h2>
+            <p className="text-black/40 mb-6 text-sm max-w-xs leading-relaxed">
               Create your first goal and OnTrack will build a daily plan to get you there.
             </p>
             <Link
               to="/goals/new"
-              className="px-5 py-2.5 bg-indigo-600 rounded-lg text-white text-sm hover:bg-indigo-700 transition-colors"
+              className="px-5 py-2.5 bg-black text-white rounded-full text-sm font-medium hover:bg-black/80 transition-colors"
             >
               Create a goal →
             </Link>
@@ -342,16 +345,16 @@ export default function Today() {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Today</h1>
-          <p className="text-sm text-white/40 mt-0.5">{todayLabel}</p>
+          <h1 className="text-2xl font-bold text-black">Today</h1>
+          <p className="text-sm text-black/40 mt-0.5">{todayLabel}</p>
         </div>
         {todayPlan && (
           <button
             onClick={() => { setShowFeedback(v => !v); setRegenError(""); }}
-            className={`flex items-center gap-2 px-3 py-2 text-sm border rounded-lg transition-colors ${
+            className={`flex items-center gap-2 px-3 py-2 text-sm border rounded-full transition-colors ${
               showFeedback
-                ? "border-indigo-600/60 bg-indigo-600/10 text-indigo-400"
-                : "border-white/10 text-white/50 hover:border-gray-500 hover:text-white"
+                ? "border-black/20 bg-black/[0.05] text-black"
+                : "border-black/10 text-black/40 hover:border-black/20 hover:text-black bg-white"
             }`}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -362,17 +365,44 @@ export default function Today() {
         )}
       </div>
 
+      {/* First-visit orientation hint */}
+      {showTodayHint && todayPlan && (
+        <div className="mb-5 rounded-xl border border-black/8 bg-white shadow-sm px-4 py-3.5 flex items-start gap-3">
+          <div className="w-5 h-5 rounded-full bg-black/5 border border-black/10 flex items-center justify-center shrink-0 mt-0.5">
+            <svg className="w-2.5 h-2.5 text-black/40" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 1v4m0 2v.5" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-black/60 mb-1.5">How Today works</p>
+            <ul className="text-xs text-black/40 leading-relaxed space-y-1">
+              <li>· Tap a task title to <span className="text-black/60">edit or regenerate it</span></li>
+              <li>· Tap the circle to <span className="text-black/60">mark a task complete</span></li>
+              <li>· Use <span className="text-black/60">Regenerate day</span> (top right) to redo the whole day with feedback</li>
+            </ul>
+          </div>
+          <button
+            onClick={() => { localStorage.setItem("ontrack_today_hint", "1"); setShowTodayHint(false); }}
+            className="text-black/20 hover:text-black/50 transition-colors shrink-0 p-1 -mr-1 -mt-1"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 14 14" fill="currentColor">
+              <path d="M3.22 3.22a.75.75 0 0 1 1.06 0L7 5.94l2.72-2.72a.75.75 0 1 1 1.06 1.06L8.06 7l2.72 2.72a.75.75 0 1 1-1.06 1.06L7 8.06l-2.72 2.72a.75.75 0 0 1-1.06-1.06L5.94 7 3.22 4.28a.75.75 0 0 1 0-1.06z" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* Save-to-goal banner */}
       {pendingSave && (
-        <div className="mb-5 rounded-2xl border border-amber-700/40 bg-amber-950/30 p-4 flex flex-col gap-3">
+        <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 flex flex-col gap-3">
           <div>
-            <p className="text-xs font-semibold text-amber-300 mb-1">Save this preference to a goal?</p>
-            <p className="text-xs text-amber-200/60 italic">"{pendingSave.feedback}"</p>
+            <p className="text-xs font-semibold text-amber-800 mb-1">Save this preference to a goal?</p>
+            <p className="text-xs text-amber-700/60 italic">"{pendingSave.feedback}"</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {goals.length > 1 && (
               <select
-                className="px-2.5 py-1.5 border border-white/10 rounded-lg bg-white/4 text-white text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/40 cursor-pointer"
+                className="px-2.5 py-1.5 border border-black/10 rounded-lg bg-white text-black text-xs focus:outline-none cursor-pointer"
                 value={pendingSave.goalId}
                 onChange={e => setPendingSave(prev => prev ? { ...prev, goalId: e.target.value } : null)}
               >
@@ -380,17 +410,17 @@ export default function Today() {
               </select>
             )}
             {goals.length === 1 && (
-              <span className="text-xs text-white/50">→ <span className="text-white">{goals[0].title}</span></span>
+              <span className="text-xs text-black/40">→ <span className="text-black">{goals[0].title}</span></span>
             )}
             <button
               onClick={saveFeedbackToGoal}
-              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 rounded-lg text-xs text-white font-medium transition-colors"
+              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 rounded-full text-xs text-white font-medium transition-colors"
             >
               Save to goal
             </button>
             <button
               onClick={() => setPendingSave(null)}
-              className="px-3 py-1.5 text-xs text-white/40 hover:text-white transition-colors"
+              className="px-3 py-1.5 text-xs text-black/40 hover:text-black transition-colors"
             >
               Dismiss
             </button>
@@ -400,27 +430,27 @@ export default function Today() {
 
       {/* Day-level regenerate panel */}
       {showFeedback && (
-        <div className="mb-5 rounded-2xl border border-indigo-800/50 bg-indigo-950/40 p-4 flex flex-col gap-3">
-          <p className="text-xs font-medium text-indigo-300">What would you like today's plan to look like?</p>
+        <div className="mb-5 rounded-2xl border border-black/8 bg-white shadow-sm p-4 flex flex-col gap-3">
+          <p className="text-xs font-medium text-black/50">What would you like today's plan to look like?</p>
           <textarea
-            className="w-full px-3 py-2.5 border border-white/10 rounded-lg bg-white/4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-colors placeholder:text-white/30 resize-none min-h-[80px]"
+            className="w-full px-3 py-2.5 border border-black/10 rounded-lg bg-[#F9F9F9] text-black text-sm focus:outline-none focus:ring-1 focus:ring-black/15 transition-colors placeholder:text-black/25 resize-none min-h-[80px]"
             placeholder="e.g. Make it shorter, focus on theory, less warm-up today…"
             value={feedback}
             onChange={e => setFeedback(e.target.value)}
           />
-          {regenError && <p className="text-xs text-red-400">{regenError}</p>}
+          {regenError && <p className="text-xs text-red-500">{regenError}</p>}
           <div className="flex gap-2">
             <button
               onClick={regenerateDay}
               disabled={regenLoading}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-sm text-white font-medium disabled:opacity-50 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-black/80 rounded-full text-sm text-white font-medium disabled:opacity-50 transition-colors"
             >
               {regenLoading && <span className="w-3.5 h-3.5 border border-white/40 border-t-white rounded-full animate-spin" />}
               {regenLoading ? "Regenerating…" : "Regenerate"}
             </button>
             <button
               onClick={() => { setShowFeedback(false); setFeedback(""); setRegenError(""); }}
-              className="px-4 py-2 text-sm text-white/40 hover:text-white transition-colors"
+              className="px-4 py-2 text-sm text-black/40 hover:text-black transition-colors"
             >
               Cancel
             </button>
@@ -436,30 +466,30 @@ export default function Today() {
           : null;
         return (
           <div className="flex flex-col items-center py-24 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-white/6 border border-white/10 flex items-center justify-center mb-5">
-              <svg className="w-7 h-7 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <div className="w-14 h-14 rounded-2xl bg-white border border-black/8 shadow-sm flex items-center justify-center mb-5">
+              <svg className="w-7 h-7 text-black/25" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h2 className="text-base font-semibold text-white mb-1">Free day</h2>
+            <h2 className="text-base font-semibold text-black mb-1">Free day</h2>
             {nextLabel ? (
-              <p className="text-sm text-white/40 mb-6 max-w-xs">
-                Nothing scheduled today. Next session is on <span className="text-white/70">{nextLabel}</span>.
+              <p className="text-sm text-black/40 mb-6 max-w-xs">
+                Nothing scheduled today. Next session is on <span className="text-black/70">{nextLabel}</span>.
               </p>
             ) : (
-              <p className="text-sm text-white/40 mb-6 max-w-xs">
+              <p className="text-sm text-black/40 mb-6 max-w-xs">
                 Nothing else scheduled this week. Generate a new plan when you're ready.
               </p>
             )}
             <div className="flex gap-2">
               <button
                 onClick={() => setShowFeedback(true)}
-                className="px-4 py-2 border border-white/10 rounded-lg text-white/50 text-sm hover:border-gray-500 hover:text-gray-200 transition-colors"
+                className="px-4 py-2 border border-black/10 rounded-full text-black/40 text-sm hover:border-black/20 hover:text-black bg-white transition-colors"
               >
                 Add tasks for today
               </button>
               {!nextLabel && (
-                <Link to="/" className="px-4 py-2 bg-indigo-600 rounded-lg text-white text-sm hover:bg-indigo-700 transition-colors">
+                <Link to="/" className="px-4 py-2 bg-black rounded-full text-white text-sm hover:bg-black/80 transition-colors font-medium">
                   Generate next week →
                 </Link>
               )}
@@ -473,15 +503,15 @@ export default function Today() {
         <div className="flex flex-col gap-4">
 
           {/* Focus summary */}
-          <div className="px-4 py-3 rounded-2xl border border-white/8 bg-white/[0.04] flex items-start gap-3">
-            <div className="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-600/20 flex items-center justify-center shrink-0 mt-0.5">
-              <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <div className="px-4 py-3 rounded-2xl border border-black/8 bg-white shadow-sm flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-black/5 border border-black/8 flex items-center justify-center shrink-0 mt-0.5">
+              <svg className="w-4 h-4 text-black/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
               </svg>
             </div>
             <div>
-              <p className="text-xs text-white/40 font-medium mb-0.5">Today's focus</p>
-              <p className="text-sm text-white/70 leading-relaxed">{todayPlan.objective}</p>
+              <p className="text-xs text-black/30 font-medium mb-0.5">Today's focus</p>
+              <p className="text-sm text-black/60 leading-relaxed">{todayPlan.objective}</p>
             </div>
           </div>
 
@@ -490,15 +520,15 @@ export default function Today() {
             const blockAllDone = block.tasks.length > 0 && block.tasks.every(t => t.completed);
             const blockSomeDone = !blockAllDone && block.tasks.some(t => t.completed);
             return (
-            <div key={block.id ?? bi} className="rounded-2xl border border-white/8 bg-white/[0.04] overflow-hidden">
+            <div key={block.id ?? bi} className="rounded-2xl border border-black/8 bg-white shadow-sm overflow-hidden">
 
               {/* Block header */}
-              <div className="px-4 py-3 border-b border-white/8/60 flex items-center justify-between gap-3">
+              <div className="px-4 py-3 border-b border-black/6 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <button
                     onClick={() => toggleBlockComplete(bi)}
                     className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                      blockAllDone ? "bg-emerald-600 border-emerald-600" : blockSomeDone ? "border-indigo-500 bg-indigo-900/40" : "border-gray-600 hover:border-gray-400"
+                      blockAllDone ? "bg-emerald-600 border-emerald-600" : blockSomeDone ? "border-black/30 bg-black/5" : "border-black/20 hover:border-black/40"
                     }`}
                   >
                     {blockAllDone && (
@@ -506,22 +536,22 @@ export default function Today() {
                         <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     )}
-                    {blockSomeDone && <div className="w-1.5 h-0.5 bg-indigo-400 rounded-full" />}
+                    {blockSomeDone && <div className="w-1.5 h-0.5 bg-black/40 rounded-full" />}
                   </button>
-                  <span className={`text-sm font-semibold truncate ${blockAllDone ? "text-white/40 line-through" : "text-white"}`}>{block.label}</span>
+                  <span className={`text-sm font-semibold truncate ${blockAllDone ? "text-black/30 line-through" : "text-black"}`}>{block.label}</span>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   {block.start_time && block.end_time && (
-                    <span className="text-xs text-white/40 tabular-nums">
+                    <span className="text-xs text-black/30 tabular-nums">
                       {formatTime(block.start_time)} – {formatTime(block.end_time)}
                     </span>
                   )}
                   <button
                     onClick={() => setBlockOpen(prev => ({ ...prev, [bi]: !prev[bi] }))}
-                    className={`text-xs px-2.5 py-1 rounded-xl border transition-colors ${
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
                       blockOpen[bi]
-                        ? "border-indigo-600/50 bg-indigo-600/10 text-indigo-400"
-                        : "border-white/10 text-white/40 hover:border-gray-600 hover:text-white/70"
+                        ? "border-black/20 bg-black/[0.05] text-black"
+                        : "border-black/10 text-black/40 hover:border-black/20 hover:text-black"
                     }`}
                   >
                     Regenerate
@@ -531,27 +561,27 @@ export default function Today() {
 
               {/* Per-block regen panel */}
               {blockOpen[bi] && (
-                <div className="px-4 py-3 border-b border-indigo-900/40 bg-indigo-950/30 flex flex-col gap-2">
-                  <p className="text-xs text-indigo-300">What should this block look like instead?</p>
+                <div className="px-4 py-3 border-b border-black/6 bg-black/[0.02] flex flex-col gap-2">
+                  <p className="text-xs text-black/50">What should this block look like instead?</p>
                   <textarea
-                    className="w-full px-3 py-2 border border-white/10 rounded-lg bg-white/4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-colors placeholder:text-white/30 resize-none min-h-[64px]"
+                    className="w-full px-3 py-2 border border-black/10 rounded-lg bg-white text-black text-sm focus:outline-none focus:ring-1 focus:ring-black/15 transition-colors placeholder:text-black/25 resize-none min-h-[64px]"
                     placeholder="e.g. More practical exercises, shorter duration, skip warm-up…"
                     value={blockFeedback[bi] || ""}
                     onChange={e => setBlockFeedback(prev => ({ ...prev, [bi]: e.target.value }))}
                   />
-                  {blockError[bi] && <p className="text-xs text-red-400">{blockError[bi]}</p>}
+                  {blockError[bi] && <p className="text-xs text-red-500">{blockError[bi]}</p>}
                   <div className="flex gap-2">
                     <button
                       onClick={() => regenerateBlock(bi, block)}
                       disabled={blockRegen[bi]}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-xs text-white font-medium disabled:opacity-50 transition-colors"
+                      className="flex items-center gap-2 px-3 py-1.5 bg-black hover:bg-black/80 rounded-full text-xs text-white font-medium disabled:opacity-50 transition-colors"
                     >
                       {blockRegen[bi] && <span className="w-3 h-3 border border-white/40 border-t-white rounded-full animate-spin" />}
                       {blockRegen[bi] ? "Regenerating…" : "Regenerate block"}
                     </button>
                     <button
                       onClick={() => setBlockOpen(prev => ({ ...prev, [bi]: false }))}
-                      className="px-3 py-1.5 text-xs text-white/40 hover:text-white transition-colors"
+                      className="px-3 py-1.5 text-xs text-black/40 hover:text-black transition-colors"
                     >
                       Cancel
                     </button>
@@ -560,7 +590,7 @@ export default function Today() {
               )}
 
               {/* Tasks */}
-              <div className="divide-y divide-white/8/60">
+              <div className="divide-y divide-black/5">
                 {block.tasks.map((task, ti) => {
                   const key = `${bi}-${ti}`;
                   const mode = taskOpen[key] ?? null;
@@ -576,7 +606,7 @@ export default function Today() {
                           <button
                             onClick={() => toggleTaskComplete(bi, ti)}
                             className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                              task.completed ? "bg-emerald-600 border-emerald-600" : "border-gray-600 hover:border-gray-400"
+                              task.completed ? "bg-emerald-600 border-emerald-600" : "border-black/20 hover:border-black/40"
                             }`}
                           >
                             {task.completed && (
@@ -586,27 +616,27 @@ export default function Today() {
                             )}
                           </button>
                           <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-medium mb-1 ${task.completed ? "text-white/40 line-through" : "text-gray-200"}`}>{task.title}</p>
-                            <p className={`text-xs leading-relaxed ${task.completed ? "text-white/30 line-through" : "text-white/40"}`}>{task.description}</p>
+                            <p className={`text-sm font-medium mb-1 ${task.completed ? "text-black/30 line-through" : "text-black"}`}>{task.title}</p>
+                            <p className={`text-xs leading-relaxed ${task.completed ? "text-black/25 line-through" : "text-black/40"}`}>{task.description}</p>
                           </div>
                           <div className="flex items-center gap-2 shrink-0 mt-0.5">
-                            <span className="text-xs text-white/30 tabular-nums whitespace-nowrap">{task.estimated_minutes}m</span>
+                            <span className="text-xs text-black/25 tabular-nums whitespace-nowrap">{task.estimated_minutes}m</span>
                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button
                                 onClick={() => {
                                   setTaskEdit(prev => ({ ...prev, [key]: { title: task.title, description: task.description, estimated_minutes: task.estimated_minutes } }));
                                   setTaskOpen(prev => ({ ...prev, [key]: "edit" }));
                                 }}
-                                className="px-2 py-1 text-xs border border-white/10 text-white/50 hover:text-white hover:border-gray-500 rounded-md transition-colors"
+                                className="px-2 py-1 text-xs border border-black/10 text-black/40 hover:text-black hover:border-black/20 rounded-full transition-colors"
                               >
                                 Edit
                               </button>
                               <button
                                 onClick={() => setTaskOpen(prev => ({ ...prev, [key]: isRegening ? null : "regen" }))}
-                                className={`px-2 py-1 text-xs border rounded-md transition-colors ${
+                                className={`px-2 py-1 text-xs border rounded-full transition-colors ${
                                   isRegening
-                                    ? "border-indigo-600/50 bg-indigo-600/10 text-indigo-400"
-                                    : "border-white/10 text-white/50 hover:text-white hover:border-gray-500"
+                                    ? "border-black/20 bg-black/[0.05] text-black"
+                                    : "border-black/10 text-black/40 hover:text-black hover:border-black/20"
                                 }`}
                               >
                                 Regen
@@ -618,15 +648,15 @@ export default function Today() {
 
                       {/* Inline edit mode */}
                       {isEditing && (
-                        <div className="px-4 py-3 flex flex-col gap-2 bg-white/4/60">
+                        <div className="px-4 py-3 flex flex-col gap-2 bg-black/[0.02] border-b border-black/6">
                           <input
-                            className="w-full px-2.5 py-1.5 border border-white/10 rounded-lg bg-white/4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
+                            className="w-full px-2.5 py-1.5 border border-black/10 rounded-lg bg-white text-sm text-black focus:outline-none focus:ring-1 focus:ring-black/15 placeholder:text-black/25"
                             value={editVals.title}
                             onChange={e => setTaskEdit(prev => ({ ...prev, [key]: { ...editVals, title: e.target.value } }))}
                             placeholder="Task title"
                           />
                           <textarea
-                            className="w-full px-2.5 py-1.5 border border-white/10 rounded-lg bg-white/4 text-xs text-white/70 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 resize-none min-h-[60px] placeholder:text-white/30"
+                            className="w-full px-2.5 py-1.5 border border-black/10 rounded-lg bg-white text-xs text-black/60 focus:outline-none focus:ring-1 focus:ring-black/15 resize-none min-h-[60px] placeholder:text-black/25"
                             value={editVals.description}
                             onChange={e => setTaskEdit(prev => ({ ...prev, [key]: { ...editVals, description: e.target.value } }))}
                             placeholder="Description"
@@ -635,21 +665,21 @@ export default function Today() {
                             <input
                               type="number"
                               min={1}
-                              className="w-20 px-2.5 py-1.5 border border-white/10 rounded-lg bg-white/4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
+                              className="w-20 px-2.5 py-1.5 border border-black/10 rounded-lg bg-white text-sm text-black focus:outline-none focus:ring-1 focus:ring-black/15"
                               value={editVals.estimated_minutes}
                               onChange={e => setTaskEdit(prev => ({ ...prev, [key]: { ...editVals, estimated_minutes: parseInt(e.target.value) || 0 } }))}
                             />
-                            <span className="text-xs text-white/40">minutes</span>
+                            <span className="text-xs text-black/40">minutes</span>
                             <div className="flex gap-2 ml-auto">
                               <button
                                 onClick={() => saveTaskEdit(bi, ti)}
-                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-xs text-white font-medium transition-colors"
+                                className="px-3 py-1.5 bg-black hover:bg-black/80 rounded-full text-xs text-white font-medium transition-colors"
                               >
                                 Save
                               </button>
                               <button
                                 onClick={() => { setTaskOpen(prev => ({ ...prev, [key]: null })); setTaskEdit(prev => { const n = { ...prev }; delete n[key]; return n; }); }}
-                                className="px-3 py-1.5 text-xs text-white/40 hover:text-white transition-colors"
+                                className="px-3 py-1.5 text-xs text-black/40 hover:text-black transition-colors"
                               >
                                 Cancel
                               </button>
@@ -660,27 +690,27 @@ export default function Today() {
 
                       {/* Per-task regen panel */}
                       {isRegening && (
-                        <div className="px-4 py-3 border-t border-indigo-900/30 bg-indigo-950/20 flex flex-col gap-2">
-                          <p className="text-xs text-indigo-300">What should this task look like instead?</p>
+                        <div className="px-4 py-3 border-t border-black/6 bg-black/[0.02] flex flex-col gap-2">
+                          <p className="text-xs text-black/50">What should this task look like instead?</p>
                           <textarea
-                            className="w-full px-3 py-2 border border-white/10 rounded-lg bg-white/4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-colors placeholder:text-white/30 resize-none min-h-[56px]"
+                            className="w-full px-3 py-2 border border-black/10 rounded-lg bg-white text-black text-sm focus:outline-none focus:ring-1 focus:ring-black/15 transition-colors placeholder:text-black/25 resize-none min-h-[56px]"
                             placeholder="e.g. Make it easier, focus on X instead, less time…"
                             value={taskFeedback[key] || ""}
                             onChange={e => setTaskFeedback(prev => ({ ...prev, [key]: e.target.value }))}
                           />
-                          {taskError[key] && <p className="text-xs text-red-400">{taskError[key]}</p>}
+                          {taskError[key] && <p className="text-xs text-red-500">{taskError[key]}</p>}
                           <div className="flex gap-2">
                             <button
                               onClick={() => regenerateTask(bi, ti, block)}
                               disabled={taskRegen[key]}
-                              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-xs text-white font-medium disabled:opacity-50 transition-colors"
+                              className="flex items-center gap-2 px-3 py-1.5 bg-black hover:bg-black/80 rounded-full text-xs text-white font-medium disabled:opacity-50 transition-colors"
                             >
                               {taskRegen[key] && <span className="w-3 h-3 border border-white/40 border-t-white rounded-full animate-spin" />}
                               {taskRegen[key] ? "Regenerating…" : "Regenerate task"}
                             </button>
                             <button
                               onClick={() => setTaskOpen(prev => ({ ...prev, [key]: null }))}
-                              className="px-3 py-1.5 text-xs text-white/40 hover:text-white transition-colors"
+                              className="px-3 py-1.5 text-xs text-black/40 hover:text-black transition-colors"
                             >
                               Cancel
                             </button>
@@ -693,8 +723,8 @@ export default function Today() {
               </div>
 
               {/* Block total */}
-              <div className="px-4 py-2 border-t border-white/8/40 bg-white/[0.04] flex justify-end">
-                <span className="text-xs text-white/30">
+              <div className="px-4 py-2 border-t border-black/5 bg-black/[0.02] flex justify-end">
+                <span className="text-xs text-black/25">
                   {block.tasks.reduce((s, t) => s + t.estimated_minutes, 0)} min total
                 </span>
               </div>
@@ -704,7 +734,7 @@ export default function Today() {
 
           {/* Day total */}
           <div className="flex justify-end pt-1">
-            <span className="text-xs text-white/30 tabular-nums">
+            <span className="text-xs text-black/25 tabular-nums">
               {totalMins} min scheduled today
             </span>
           </div>

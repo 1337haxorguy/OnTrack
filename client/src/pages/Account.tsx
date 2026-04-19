@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
-import { useAuth0 } from "@auth0/auth0-react";
+import { useAuth } from "../context/AuthContext";
 import { useApp } from "../context/AppContext";
 
-const cardCls = "rounded-xl border border-gray-800 bg-gray-900/40 p-5 flex flex-col gap-4";
+const cardCls = "rounded-2xl border border-black/8 bg-white shadow-sm p-5 flex flex-col gap-4";
 
 async function resizeToBase64(file: File, size = 128): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -44,18 +44,18 @@ function DangerButton({
 
   if (confirming) {
     return (
-      <div className="flex items-center gap-3 p-3 rounded-lg bg-red-950/40 border border-red-900/50">
-        <p className="text-sm text-red-300 flex-1">{description}</p>
+      <div className="flex items-center gap-3 p-3 rounded-xl bg-red-50 border border-red-200">
+        <p className="text-sm text-red-700 flex-1">{description}</p>
         <div className="flex gap-2 shrink-0">
           <button
             onClick={() => { onConfirm(); setConfirming(false); }}
-            className="px-3 py-1.5 text-xs bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium"
+            className="px-3 py-1.5 text-xs bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors font-medium"
           >
             {confirmLabel}
           </button>
           <button
             onClick={() => setConfirming(false)}
-            className="px-3 py-1.5 text-xs text-gray-400 hover:text-white transition-colors"
+            className="px-3 py-1.5 text-xs text-black/40 hover:text-black transition-colors"
           >
             Cancel
           </button>
@@ -67,22 +67,22 @@ function DangerButton({
   return (
     <button
       onClick={() => setConfirming(true)}
-      className="w-full flex items-center justify-between px-4 py-3 rounded-lg border border-gray-800 hover:border-red-900/60 hover:bg-red-950/20 text-left transition-colors group"
+      className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-black/8 hover:border-red-200 hover:bg-red-50 text-left transition-colors group"
     >
-      <span className="text-sm text-gray-300 group-hover:text-red-300 transition-colors">{label}</span>
-      <span className="text-xs text-gray-600 group-hover:text-red-500 transition-colors">Remove</span>
+      <span className="text-sm text-black/70 group-hover:text-red-700 transition-colors">{label}</span>
+      <span className="text-xs text-black/25 group-hover:text-red-500 transition-colors">Remove</span>
     </button>
   );
 }
 
 export default function Account() {
-  const { user, logout } = useAuth0();
+  const { user, signOut } = useAuth();
   const { setGoals, setPlan, avatar, setAvatar } = useApp();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
   const initials = user
-    ? (user.name || user.email || "?")
+    ? (user.user_metadata?.full_name || user.email || "?")
         .split(" ")
         .map((w: string) => w[0])
         .join("")
@@ -106,18 +106,18 @@ export default function Account() {
 
   return (
     <div className="max-w-lg pb-20">
-      <h1 className="text-xl font-bold mb-8">Account</h1>
+      <h1 className="text-xl font-bold text-black mb-8">Account</h1>
 
       <div className="flex flex-col gap-4">
 
         {/* ── PROFILE ── */}
         <section className={cardCls}>
-          <h2 className="text-sm font-semibold text-white">Profile</h2>
+          <h2 className="text-sm font-semibold text-black">Profile</h2>
           <div className="flex items-center gap-4">
 
             {/* Avatar with upload overlay */}
             <div className="relative shrink-0 group">
-              <div className="w-16 h-16 rounded-full overflow-hidden bg-indigo-600/70 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full overflow-hidden bg-black/80 flex items-center justify-center">
                 {avatar ? (
                   <img src={avatar} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
@@ -152,13 +152,13 @@ export default function Account() {
 
             {/* Name / email */}
             <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-              {user?.name && (
-                <p className="text-base font-medium text-white truncate">{user.name}</p>
+              {user?.user_metadata?.full_name && (
+                <p className="text-base font-medium text-black truncate">{user.user_metadata.full_name}</p>
               )}
               {user?.email && (
-                <p className="text-sm text-gray-400 truncate">{user.email}</p>
+                <p className="text-sm text-black/40 truncate">{user.email}</p>
               )}
-              <p className="text-xs text-gray-600 mt-1">Managed by your login provider</p>
+              <p className="text-xs text-black/25 mt-1">Managed by your login provider</p>
             </div>
           </div>
 
@@ -166,7 +166,7 @@ export default function Account() {
           {avatar && (
             <button
               onClick={() => setAvatar(null)}
-              className="self-start text-xs text-gray-500 hover:text-red-400 transition-colors"
+              className="self-start text-xs text-black/40 hover:text-red-500 transition-colors"
             >
               Remove photo
             </button>
@@ -176,8 +176,8 @@ export default function Account() {
         {/* ── DATA ── */}
         <section className={cardCls}>
           <div>
-            <h2 className="text-sm font-semibold text-white mb-1">Your data</h2>
-            <p className="text-xs text-gray-500">These actions are permanent and cannot be undone.</p>
+            <h2 className="text-sm font-semibold text-black mb-1">Your data</h2>
+            <p className="text-xs text-black/40">These actions are permanent and cannot be undone.</p>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -204,10 +204,10 @@ export default function Account() {
 
         {/* ── SIGN OUT ── */}
         <section className={cardCls}>
-          <h2 className="text-sm font-semibold text-white">Session</h2>
+          <h2 className="text-sm font-semibold text-black">Session</h2>
           <button
-            onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
-            className="w-full px-4 py-2.5 border border-gray-700 rounded-lg text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors text-left"
+            onClick={() => signOut()}
+            className="w-full px-4 py-2.5 border border-black/10 rounded-full text-sm text-black/60 hover:border-black/20 hover:text-black transition-colors text-left"
           >
             Sign out
           </button>

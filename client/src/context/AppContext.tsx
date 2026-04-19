@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef } from "react";
-import { useAuth0 } from "@auth0/auth0-react";
+import { useAuth } from "./AuthContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE;
 
@@ -120,7 +120,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, getAccessTokenSilently } = useAuth0();
+  const { isAuthenticated, isLoading, getToken } = useAuth();
 
   const [goals, setGoals] = useState<Goal[]>([]);
   const [schedule, setSchedule] = useState<Schedule>(defaultSchedule);
@@ -140,9 +140,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setToast(null);
   };
 
-  // Ref so flushToDb always has the latest getAccessTokenSilently without re-creating the function
-  const getTokenRef = useRef(getAccessTokenSilently);
-  useEffect(() => { getTokenRef.current = getAccessTokenSilently; }, [getAccessTokenSilently]);
+  // Ref so flushToDb always has the latest getToken without re-creating the function
+  const getTokenRef = useRef(getToken);
+  useEffect(() => { getTokenRef.current = getToken; }, [getToken]);
 
   // Debounced DB write
   const syncEnabled = useRef(false);
@@ -177,7 +177,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (isLoading) return;
 
     if (!isAuthenticated) {
-      // Unauthenticated: just use localStorage, enable sync (no-ops for unauthed)
       syncEnabled.current = true;
       setDataLoaded(true);
       return;
@@ -186,13 +185,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       let dbHadSchedule = false;
       try {
-        const token = await getAccessTokenSilently();
+        const token = await getToken();
         const res = await fetch(`${API_BASE}/api/user-data`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
           const data = await res.json();
-          // DB wins over in-memory defaults when it has data
           if (data.goals?.length > 0) setGoals(data.goals);
           if (data.schedule)          { setSchedule(data.schedule); dbHadSchedule = true; }
           if (data.plan?.length > 0)  setPlan(data.plan);
@@ -204,7 +202,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setDataLoaded(true);
         setTimeout(() => {
           syncEnabled.current = true;
-          // If the DB had no schedule yet, push the default up so it's persisted
           if (!dbHadSchedule) {
             pending.current = { schedule: defaultSchedule };
             flushToDb();

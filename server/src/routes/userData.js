@@ -6,7 +6,7 @@ const User = require("../../models/user");
 router.get("/", async (req, res) => {
   try {
     const sub = req.auth.payload.sub;
-    const user = await User.findOne({ auth0Sub: sub });
+    const user = await User.findOne({ sub });
     if (!user) return res.json({ goals: [], schedule: null, plan: null, avatar: null });
     res.json({ goals: user.goals ?? [], schedule: user.schedule ?? null, plan: user.plan ?? null, avatar: user.avatar ?? null });
   } catch (err) {
@@ -28,7 +28,7 @@ router.put("/", async (req, res) => {
     if (avatar   !== undefined) patch.avatar   = avatar;
 
     await User.findOneAndUpdate(
-      { auth0Sub: sub },
+      { sub },
       { $set: patch },
       { upsert: true, new: true, runValidators: false }
     );
