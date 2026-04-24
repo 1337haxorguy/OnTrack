@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useApp } from "../context/AppContext";
+import { useApp, FREE_LIMITS } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
 import type { DayPlan } from "../context/AppContext";
 
@@ -10,7 +10,8 @@ function toDateStr(d: Date) {
 }
 
 export default function Recap() {
-  const { goals, schedule, plan, setPlan, showToast } = useApp();
+  const { goals, schedule, plan, setPlan, showToast, usage, incrementGenerations, limitsEnabled } = useApp();
+  const genLimitHit = limitsEnabled && isAuthenticated && usage.generations >= FREE_LIMITS.generations;
 
   const toggleBlockComplete = (dayIdx: number, blockIdx: number) => {
     const allDone = plan![dayIdx]?.time_blocks[blockIdx]?.tasks.every(t => t.completed);
@@ -142,7 +143,9 @@ export default function Recap() {
         }),
       });
 
+      if (res.status === 429) { const b = await res.json(); throw new Error(b.error === "generation_limit_reached" ? "You've used all your free generations." : "Too many requests."); }
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      incrementGenerations();
       const data = await res.json();
       const planWithIds: DayPlan[] = (data.weekly_tasks || []).map((day: DayPlan) => ({
         ...day,
@@ -309,9 +312,12 @@ export default function Recap() {
 
       {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
 
+      {genLimitHit && (
+        <p className="text-xs text-black/40 mb-2 text-center">You've used all {FREE_LIMITS.generations} free generations. Upgrade to continue.</p>
+      )}
       <button
         onClick={generateNextWeek}
-        disabled={generating || goals.length === 0}
+        disabled={generating || goals.length === 0 || genLimitHit}
         className="w-full py-3 bg-black hover:bg-black/80 rounded-full text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
       >
         {generating && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { useApp } from "../context/AppContext";
+import { useApp, FREE_LIMITS } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
 import type { DayPlan, TimeBlock } from "../context/AppContext";
 
@@ -30,8 +30,9 @@ function formatTime(t: string): string {
 }
 
 export default function Today() {
-  const { goals, setGoals, schedule, plan, setPlan } = useApp();
+  const { goals, setGoals, schedule, plan, setPlan, usage, incrementGenerations, limitsEnabled } = useApp();
   const { isAuthenticated, getToken } = useAuth();
+  const genLimitHit = limitsEnabled && isAuthenticated && usage.generations >= FREE_LIMITS.generations;
 
   useEffect(() => { document.title = "Today — OnTrack"; }, []);
 
@@ -106,8 +107,10 @@ export default function Today() {
           availability: schedule,
         }),
       });
+      if (res.status === 429) { const b = await res.json(); throw new Error(b.error === "generation_limit_reached" ? "You've used all your free generations." : "Too many requests."); }
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
       applyNewDay(await res.json());
+      incrementGenerations();
       setFeedback("");
       setShowFeedback(false);
     } catch (e: unknown) {
@@ -141,9 +144,11 @@ export default function Today() {
           preserve_times: true,
         }),
       });
+      if (res.status === 429) { const b = await res.json(); throw new Error(b.error === "generation_limit_reached" ? "You've used all your free generations." : "Too many requests."); }
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const data: DayPlan | null = await res.json();
       if (!data) throw new Error("No response from server");
+      incrementGenerations();
       const newBlock = data.time_blocks?.[0];
       if (newBlock && todayPlan) {
         const updatedDay: DayPlan = {
@@ -196,9 +201,11 @@ export default function Today() {
           preserve_times: true,
         }),
       });
+      if (res.status === 429) { const b = await res.json(); throw new Error(b.error === "generation_limit_reached" ? "You've used all your free generations." : "Too many requests."); }
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const data: DayPlan | null = await res.json();
       if (!data) throw new Error("No response from server");
+      incrementGenerations();
       const newTask = data.time_blocks?.[0]?.tasks?.[0];
       if (newTask && todayPlan) {
         const updatedDay: DayPlan = {
@@ -442,7 +449,8 @@ export default function Today() {
           <div className="flex gap-2">
             <button
               onClick={regenerateDay}
-              disabled={regenLoading}
+              disabled={regenLoading || genLimitHit}
+              title={genLimitHit ? "You've used all your free generations." : undefined}
               className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-black/80 rounded-full text-sm text-white font-medium disabled:opacity-50 transition-colors"
             >
               {regenLoading && <span className="w-3.5 h-3.5 border border-white/40 border-t-white rounded-full animate-spin" />}
@@ -573,7 +581,8 @@ export default function Today() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => regenerateBlock(bi, block)}
-                      disabled={blockRegen[bi]}
+                      disabled={blockRegen[bi] || genLimitHit}
+                      title={genLimitHit ? "You've used all your free generations." : undefined}
                       className="flex items-center gap-2 px-3 py-1.5 bg-black hover:bg-black/80 rounded-full text-xs text-white font-medium disabled:opacity-50 transition-colors"
                     >
                       {blockRegen[bi] && <span className="w-3 h-3 border border-white/40 border-t-white rounded-full animate-spin" />}
@@ -702,7 +711,8 @@ export default function Today() {
                           <div className="flex gap-2">
                             <button
                               onClick={() => regenerateTask(bi, ti, block)}
-                              disabled={taskRegen[key]}
+                              disabled={taskRegen[key] || genLimitHit}
+                              title={genLimitHit ? "You've used all your free generations." : undefined}
                               className="flex items-center gap-2 px-3 py-1.5 bg-black hover:bg-black/80 rounded-full text-xs text-white font-medium disabled:opacity-50 transition-colors"
                             >
                               {taskRegen[key] && <span className="w-3 h-3 border border-white/40 border-t-white rounded-full animate-spin" />}

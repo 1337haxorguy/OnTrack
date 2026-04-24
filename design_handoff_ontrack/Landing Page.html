@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ontrack — your goals, at your pace.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,300;1,9..144,300;1,9..144,400&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <style>
+    :root {
+      --bg: #FBFAF7;           /* warm cream */
+      --paper: #ffffff;
+      --ink: #0b0b0b;
+      --ink-90: rgba(11,11,11,.90);
+      --ink-60: rgba(11,11,11,.60);
+      --ink-40: rgba(11,11,11,.40);
+      --ink-25: rgba(11,11,11,.25);
+      --ink-12: rgba(11,11,11,.12);
+      --ink-08: rgba(11,11,11,.08);
+      --ink-05: rgba(11,11,11,.05);
+      --accent: oklch(0.72 0.06 150);        /* soft sage default */
+      --accent-ink: oklch(0.38 0.06 150);
+      --accent-bg: oklch(0.94 0.03 150);
+      --rad: 16px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Epilogue", ui-sans-serif, system-ui, -apple-system, sans-serif;
+      font-feature-settings: "ss01","cv11";
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+    .serif { font-family: "Fraunces", Georgia, serif; font-style: italic; font-weight: 300; }
+    ::selection { background: var(--accent); color: var(--ink); }
+
+    /* subtle grain */
+    .grain::before {
+      content: "";
+      position: fixed; inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+      opacity: .45;
+      mix-blend-mode: multiply;
+    }
+
+    /* keyframes */
+    @keyframes rise { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
+    @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+    @keyframes blink { 0%, 49% { opacity: 1 } 50%, 100% { opacity: 0 } }
+    @keyframes marquee {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
+    }
+    @keyframes dashShift { to { stroke-dashoffset: -1000; } }
+    @keyframes float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-6px) } }
+    @keyframes gentle-pulse { 0%,100% { transform: scale(1); opacity: .9 } 50% { transform: scale(1.04); opacity: 1 } }
+
+    .reveal { opacity: 0; transform: translateY(24px); transition: opacity .9s ease, transform .9s cubic-bezier(.2,.7,.2,1); }
+    .reveal.in { opacity: 1; transform: none; }
+
+    /* scrollbar polish */
+    html { scroll-behavior: smooth; }
+
+    /* reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; transition: none !important; }
+    }
+
+    /* accent underline under serif hero words */
+    .accent-underline {
+      background-image: linear-gradient(var(--accent-solid), var(--accent-solid));
+      background-repeat: no-repeat;
+      background-position: 0 92%;
+      background-size: 100% 0.14em;
+      padding-bottom: 0.04em;
+    }
+
+    /* clean straight underline — thicker, behind the text */
+    .accent-underline-slab {
+      position: relative;
+      display: inline-block;
+    }
+    .accent-underline-slab::after {
+      content: "";
+      position: absolute;
+      left: 0; right: 0; bottom: 0.06em;
+      height: 0.14em;
+      background: var(--accent-solid);
+      border-radius: 999px;
+      z-index: -1;
+    }
+
+    /* eyebrow chip */
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 14px; border-radius: 999px;
+      font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+      font-weight: 700; color: var(--accent-ink); background: var(--accent-bg);
+    }
+    .eyebrow::before {
+      content: ""; width: 5px; height: 5px; border-radius: 999px; background: var(--accent-solid);
+    }
+  </style>
+</head>
+<body class="grain">
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="env,react">
+    const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+    /* ─────────────────────────── TWEAKS ─────────────────────────── */
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "accent": "sage",
+      "heroVariant": "split",
+      "heroHeadline": "stop starting over.\nstart showing up.\n"
+    }/*EDITMODE-END*/;
+
+    const ACCENTS = {
+      sage:   { name: "sage",   hue: 150, bg: "oklch(0.94 0.03 150)", ink: "oklch(0.38 0.06 150)", solid: "oklch(0.72 0.06 150)" },
+      amber:  { name: "amber",  hue: 70,  bg: "oklch(0.95 0.05 80)",  ink: "oklch(0.45 0.09 65)",  solid: "oklch(0.78 0.1 75)"  },
+      rose:   { name: "rose",   hue: 20,  bg: "oklch(0.94 0.035 25)", ink: "oklch(0.46 0.08 20)",  solid: "oklch(0.76 0.07 25)" },
+      sky:    { name: "sky",    hue: 230, bg: "oklch(0.94 0.03 230)", ink: "oklch(0.4 0.07 230)",  solid: "oklch(0.72 0.06 230)"},
+      none:   { name: "none",   hue: 0,   bg: "rgba(11,11,11,.05)",   ink: "rgba(11,11,11,.6)",    solid: "rgba(11,11,11,.85)"  }
+    };
+
+    /* ─────────────────────────── HOOKS ─────────────────────────── */
+    function useReveal() {
+      useEffect(() => {
+        const els = document.querySelectorAll(".reveal");
+        const io = new IntersectionObserver((entries) => {
+          entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } });
+        }, { threshold: 0.12, rootMargin: "0px 0px -60px 0px" });
+        els.forEach((el) => io.observe(el));
+        return () => io.disconnect();
+      }, []);
+    }
+
+    function useInView(ref, opts = { threshold: 0.25 }) {
+      const [seen, setSeen] = useState(false);
+      useEffect(() => {
+        if (!ref.current) return;
+        const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) setSeen(true); }, opts);
+        io.observe(ref.current);
+        return () => io.disconnect();
+      }, []);
+      return seen;
+    }
+
+    /* ─────────────────────────── TYPEWRITER ─────────────────────────── */
+    const GOALS = [
+      "learn guitar 🎸",
+      "run a half marathon 🏃",
+      "speak spanish 🌍",
+      "write every morning ✍︎",
+      "get stronger 💪",
+      "draw every day 🎨",
+    ];
+
+    function Typewriter({ words = GOALS, typeMs = 70, holdMs = 1200, eraseMs = 35 }) {
+      const [i, setI] = useState(0);
+      const [sub, setSub] = useState("");
+      const [phase, setPhase] = useState("type"); // type | hold | erase
+      useEffect(() => {
+        const word = words[i % words.length];
+        let t;
+        if (phase === "type") {
+          if (sub.length < word.length) t = setTimeout(() => setSub(word.slice(0, sub.length + 1)), typeMs);
+          else t = setTimeout(() => setPhase("hold"), 50);
+        } else if (phase === "hold") {
+          t = setTimeout(() => setPhase("erase"), holdMs);
+        } else {
+          if (sub.length > 0) t = setTimeout(() => setSub(sub.slice(0, -1)), eraseMs);
+          else { setPhase("type"); setI((v) => v + 1); }
+        }
+        return () => clearTimeout(t);
+      }, [sub, phase, i]);
+      return (
+        <span className="tw">
+          <span>{sub}</span>
+          <span className="caret" aria-hidden="true" />
+          <style>{`
+            .tw { display: inline-flex; align-items: center; }
+            .caret { display: inline-block; width: 2px; height: 0.9em; background: var(--accent-solid); margin-left: 4px; animation: blink 1s step-end infinite; }
+          `}</style>
+        </span>
+      );
+    }
+
+    /* ─────────────────────────── NAV ─────────────────────────── */
+    function Nav() {
+      const [scrolled, setScrolled] = useState(false);
+      useEffect(() => {
+        const on = () => setScrolled(window.scrollY > 8);
+        on(); window.addEventListener("scroll", on, { passive: true });
+        return () => window.removeEventListener("scroll", on);
+      }, []);
+      return (
+        <nav style={{
+          position: "fixed", top: 0, left: 0, right: 0, zIndex: 50,
+          backdropFilter: scrolled ? "saturate(140%) blur(10px)" : "none",
+          background: scrolled ? "rgba(249,247,242,.8)" : "transparent",
+          borderBottom: scrolled ? "1px solid var(--ink-08)" : "1px solid transparent",
+          transition: "all .3s ease",
+        }}>
+          <div style={{
+            maxWidth: 1320, margin: "0 auto",
+            padding: "18px 32px",
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+          }}>
+            <a href="#top" style={{ textDecoration: "none", color: "var(--ink)" }}>
+              <CurvedWordmark scale={0.58} />
+            </a>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <a href="#how" style={linkStyle}>how it works</a>
+              <a href="#who" style={linkStyle}>who it's for</a>
+              <a href="#cta" className="btn btn--ghost">log in</a>
+              <a href="#cta" className="btn btn--solid">sign up</a>
+            </div>
+          </div>
+          <style>{`
+            .btn { display: inline-flex; align-items: center; justify-content: center; padding: 9px 16px; border-radius: 999px; font-size: 13px; font-weight: 500; text-decoration: none; transition: all .2s ease; font-family: inherit; border: 1px solid transparent; cursor: pointer; }
+            .btn--ghost { color: var(--ink-90); background: transparent; border-color: var(--ink-12); }
+            .btn--ghost:hover { background: var(--ink-05); border-color: var(--ink-25); }
+            .btn--solid { background: var(--ink); color: var(--bg); }
+            .btn--solid:hover { background: #222; }
+            .btn--lg { padding: 14px 24px; font-size: 14px; font-weight: 600; }
+          `}</style>
+        </nav>
+      );
+    }
+    const linkStyle = {
+      fontSize: 13, fontWeight: 500, color: "var(--ink-60)",
+      textDecoration: "none", padding: "9px 14px", borderRadius: 999, transition: "color .2s"
+    };
+
+    /* ─────────────────────────── LOGO ─────────────────────────── */
+    function Mark({ size = 26 }) {
+      return (
+        <svg width={size} height={size} viewBox="0 0 28 28" fill="none" style={{ display: "block" }}>
+          <defs>
+            <marker id="arrowhead" markerWidth="5" markerHeight="5" refX="3.5" refY="2.5" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L4,2.5 L0,5 z" fill="currentColor" />
+            </marker>
+          </defs>
+          <path
+            d="M3 20 C 6 20, 8 12, 11 12 S 14 16, 17 16 S 22 6, 25 6"
+            stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"
+            markerEnd="url(#arrowhead)"
+          />
+        </svg>
+      );
+    }
+
+    /* Hand-drawn "ON TRACK" wordmark — letters rotated/skewed to ride an arc */
+    function CurvedWordmark({ scale = 1 }) {
+      const LETTERS = [
+        { ch: "O", cx: 54.73,  cy: 66.89, r: -24.25, sk: -4.01 },
+        { ch: "N", cx: 85.15,  cy: 50.56, r: -17.66, sk: -3.05 },
+        { ch: "T", cx: 129.68, cy: 44.33, r:   6.77, sk:  1.22 },
+        { ch: "R", cx: 159.22, cy: 52.44, r:   6.77, sk:  1.22 },
+        { ch: "A", cx: 189.69, cy: 53.98, r:   6.77, sk:  1.22 },
+        { ch: "C", cx: 221.08, cy: 52.40, r:  -8.26, sk: -1.48 },
+        { ch: "K", cx: 254.24, cy: 35.58, r: -27.61, sk: -4.43 },
+      ];
+      return (
+        <svg
+          viewBox="0 0 280 100"
+          height={62 * scale}
+          style={{ width: "auto", display: "block", overflow: "visible", userSelect: "none" }}
+          aria-label="ON TRACK"
+        >
+          {LETTERS.map(({ ch, cx, cy, r, sk }) => (
+            <text
+              key={ch}
+              x="0" y="0"
+              textAnchor="middle"
+              dominantBaseline="central"
+              fontFamily="Epilogue, sans-serif"
+              fontWeight="700"
+              fontSize="48"
+              fill="currentColor"
+              letterSpacing="-1.44"
+              transform={`translate(${cx},${cy}) skewX(${sk}) rotate(${r})`}
+            >
+              {ch}
+            </text>
+          ))}
+        </svg>
+      );
+    }
+  </script>
+
+  <script type="text/babel" data-presets="env,react" src="./sections.jsx"></script>
+  <script type="text/babel" data-presets="env,react" src="./visuals.jsx"></script>
+  <script type="text/babel" data-presets="env,react" src="./tweaks.jsx"></script>
+  <script type="text/babel" data-presets="env,react" src="./app.jsx"></script>
+</body>
+</html>

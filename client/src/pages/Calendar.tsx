@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { useApp } from "../context/AppContext";
+import { useApp, FREE_LIMITS } from "../context/AppContext";
 import type { DayPlan, TimeBlock } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
 
@@ -130,7 +130,7 @@ interface DragState {
 
 // ---- Component ----
 export default function Calendar() {
-  const { goals, setGoals, schedule, plan, setPlan } = useApp();
+  const { goals, setGoals, schedule, plan, setPlan, usage, incrementGenerations, limitsEnabled } = useApp();
   const { isAuthenticated, getToken } = useAuth();
 
   useEffect(() => { document.title = "Calendar — OnTrack"; }, []);
@@ -345,7 +345,13 @@ export default function Calendar() {
           availability: schedule,
         }),
       });
-      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      if (!res.ok) {
+        if (res.status === 429) {
+          const body = await res.json().catch(() => ({}));
+          if (body.error === "generation_limit_reached") throw new Error("You've used all your free generations.");
+        }
+        throw new Error(`Server error: ${res.status}`);
+      }
       const data = await res.json();
       if (data) {
         const newDay: DayPlan = {
@@ -357,6 +363,7 @@ export default function Calendar() {
         };
         setPlan((prev) => prev!.map((d, i) => (i === dayIdx ? newDay : d)));
       }
+      incrementGenerations();
       setSelectedEvent(null);
       setRegenFeedback("");
       setTaskModalMode({});
@@ -387,7 +394,13 @@ export default function Calendar() {
           preserve_times: true,
         }),
       });
-      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      if (!res.ok) {
+        if (res.status === 429) {
+          const body = await res.json().catch(() => ({}));
+          if (body.error === "generation_limit_reached") throw new Error("You've used all your free generations.");
+        }
+        throw new Error(`Server error: ${res.status}`);
+      }
       const data: DayPlan | null = await res.json();
       if (!data) throw new Error("No response from server");
       const newBlock = data.time_blocks?.[0];
@@ -404,6 +417,7 @@ export default function Calendar() {
         ));
         setSelectedEvent(prev => prev ? { ...prev, block: { ...mergedBlock, id: prev.block.id } } : null);
       }
+      incrementGenerations();
       if (regenBlockFeedback && goals.length > 0) setPendingSave({ feedback: regenBlockFeedback, goalId: goals[0].id });
       setRegenBlockFeedback("");
       setModalMode("detail");

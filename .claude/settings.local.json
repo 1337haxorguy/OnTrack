@@ -32,7 +32,13 @@
       "Bash(grep -E \"\\\\.\\(jsx|html|css|md\\)$\")",
       "Bash(tar -xO \"ontrack/project/app.jsx\")",
       "Bash(tar -xO \"ontrack/project/sections.jsx\")",
-      "Bash(tar -xO \"ontrack/project/visuals.jsx\")"
+      "Bash(tar -xO \"ontrack/project/visuals.jsx\")",
+      "Bash(zcat \"/Users/angelodelafuente/.claude/projects/-Users-angelodelafuente-Desktop-OnTrack/d050fec6-94ed-43f9-9561-972cf7674a1a/tool-results/webfetch-1777013422226-6rrvxi.bin\")",
+      "Bash(xxd \"/Users/angelodelafuente/.claude/projects/-Users-angelodelafuente-Desktop-OnTrack/d050fec6-94ed-43f9-9561-972cf7674a1a/tool-results/webfetch-1777013422226-6rrvxi.bin\")",
+      "Bash(gunzip -c \"/Users/angelodelafuente/.claude/projects/-Users-angelodelafuente-Desktop-OnTrack/d050fec6-94ed-43f9-9561-972cf7674a1a/tool-results/webfetch-1777013422226-6rrvxi.bin\")",
+      "Bash(grep -v \"/$\")",
+      "Bash(tar -xO \"ontrack/project/Create Goal.html\")",
+      "Bash(tar -xO \"ontrack/chats/chat1.md\")"
     ]
   }
 }

@@ -7,8 +7,8 @@ router.get("/", async (req, res) => {
   try {
     const sub = req.auth.payload.sub;
     const user = await User.findOne({ sub });
-    if (!user) return res.json({ goals: [], schedule: null, plan: null, avatar: null });
-    res.json({ goals: user.goals ?? [], schedule: user.schedule ?? null, plan: user.plan ?? null, avatar: user.avatar ?? null });
+    if (!user) return res.json({ goals: [], schedule: null, plan: null, avatar: null, usage: { generations: 0 } });
+    res.json({ goals: user.goals ?? [], schedule: user.schedule ?? null, plan: user.plan ?? null, avatar: user.avatar ?? null, usage: user.usage ?? { generations: 0 } });
   } catch (err) {
     console.error("user-data GET error:", err);
     res.status(500).json({ error: "Failed to load user data" });

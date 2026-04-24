@@ -9,6 +9,9 @@ const UserSchema = new Schema({
   schedule: { type: Schema.Types.Mixed, default: null },
   plan:     { type: Schema.Types.Mixed, default: null },
   avatar:   { type: String, default: null },
+  usage: {
+    generations: { type: Number, default: 0 },
+  },
 }, { timestamps: true });
 
 module.exports = model('User', UserSchema);

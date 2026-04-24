@@ -3,6 +3,10 @@ import { useAuth } from "./AuthContext";
 
 const API_BASE = import.meta.env.VITE_API_BASE;
 
+// Keep in sync with server/src/config/limits.js
+export const LIMITS_ENABLED = false;
+export const FREE_LIMITS = { goals: 3, generations: 5 };
+
 export const DAYS = [
   "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
 ] as const;
@@ -97,6 +101,10 @@ const defaultSchedule: Schedule = {
 
 // ---- Context ----
 
+export interface Usage {
+  generations: number;
+}
+
 export interface Toast {
   message: string;
   action?: { label: string; href: string };
@@ -115,6 +123,9 @@ interface AppContextType {
   toast: Toast | null;
   showToast: (t: Toast) => void;
   dismissToast: () => void;
+  usage: Usage;
+  incrementGenerations: () => void;
+  limitsEnabled: boolean;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -128,7 +139,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [avatar, setAvatar] = useState<string | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
+  const [usage, setUsage] = useState<Usage>({ generations: 0 });
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const incrementGenerations = () => setUsage(u => ({ ...u, generations: u.generations + 1 }));
 
   const showToast = (t: Toast) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -195,6 +209,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           if (data.schedule)          { setSchedule(data.schedule); dbHadSchedule = true; }
           if (data.plan?.length > 0)  setPlan(data.plan);
           if (data.avatar)            setAvatar(data.avatar);
+          if (data.usage)             setUsage(data.usage);
         }
       } catch (e) {
         console.warn("Could not load user data from DB:", e);
@@ -218,7 +233,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { queueSync({ avatar });   }, [avatar]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <AppContext.Provider value={{ goals, setGoals, schedule, setSchedule, plan, setPlan, avatar, setAvatar, dataLoaded, toast, showToast, dismissToast }}>
+    <AppContext.Provider value={{ goals, setGoals, schedule, setSchedule, plan, setPlan, avatar, setAvatar, dataLoaded, toast, showToast, dismissToast, usage, incrementGenerations, limitsEnabled: LIMITS_ENABLED }}>
       {children}
     </AppContext.Provider>
   );

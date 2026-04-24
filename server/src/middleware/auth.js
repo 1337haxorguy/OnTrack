@@ -32,4 +32,20 @@ const jwtCheck = async (req, res, next) => {
   }
 };
 
-module.exports = jwtCheck;
+// Sets req.auth if a valid token is present, but never rejects the request.
+// Used on endpoints that work for both authenticated and guest users.
+const optionalAuth = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) return next();
+  const token = authHeader.slice(7);
+  try {
+    await initJose();
+    const { payload } = await _jwtVerify(token, _JWKS, { audience: "authenticated" });
+    req.auth = { payload };
+  } catch {
+    // Invalid or expired token — treat as unauthenticated, still proceed.
+  }
+  next();
+};
+
+module.exports = { jwtCheck, optionalAuth };

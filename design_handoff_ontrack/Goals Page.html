@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OnTrack — Goals</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;500;600;700;800&display=swap" />
+<style>
+  :root {
+    --bg: #F9F9F9;
+    --paper: #FFFFFF;
+    --ink: #0D0D0D;
+    --ink-90: rgba(13,13,13,.9);
+    --ink-60: rgba(13,13,13,.6);
+    --ink-40: rgba(13,13,13,.4);
+    --ink-25: rgba(13,13,13,.25);
+    --ink-12: rgba(13,13,13,.12);
+    --ink-08: rgba(13,13,13,.08);
+    --ink-05: rgba(13,13,13,.05);
+
+    /* the new green */
+    --green-ink:   #1F5E46;
+    --green-solid: #2F7D5E;
+    --green-bg:    #E8F1EC;
+    --green-bg-2:  #D9E8DF;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--ink);
+    font-family: Epilogue, system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  }
+  a { color: inherit; }
+
+  /* nav */
+  .nav {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(249,249,249,.92); backdrop-filter: saturate(1.2) blur(10px);
+    border-bottom: 1px solid var(--ink-08);
+  }
+  .nav-inner {
+    max-width: 1180px; margin: 0 auto;
+    height: 64px; padding: 0 28px;
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+  }
+  .nav-left  { display: flex; align-items: center; gap: 12px; justify-content: flex-start; }
+  .nav-tabs  { display: inline-flex; gap: 2px; background: var(--ink-05); border-radius: 999px; padding: 4px; }
+  .nav-right { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+
+  .nav-tab {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: 999px;
+    font-size: 13px; font-weight: 600; color: var(--ink-60);
+    text-decoration: none; cursor: pointer;
+    transition: background .2s, color .2s;
+  }
+  .nav-tab:hover { color: var(--ink); }
+  .nav-tab.is-active { background: var(--ink); color: #fff; }
+  .nav-tab .dot { width: 5px; height: 5px; border-radius: 999px; background: currentColor; opacity: .7; }
+
+  .avatar {
+    width: 32px; height: 32px; border-radius: 999px; background: var(--ink);
+    color: #fff; display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 12px; letter-spacing: .3px;
+  }
+  .icon-btn {
+    width: 32px; height: 32px; border-radius: 999px; border: 1px solid var(--ink-12);
+    background: var(--paper); display: inline-flex; align-items: center; justify-content: center;
+    color: var(--ink-60); cursor: pointer;
+  }
+  .icon-btn:hover { color: var(--ink); border-color: var(--ink-25); }
+
+  /* buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 16px; border-radius: 999px;
+    font-size: 13px; font-weight: 600; line-height: 1;
+    border: 1px solid transparent; cursor: pointer; text-decoration: none;
+    transition: background .2s, border-color .2s, color .2s, transform .1s;
+  }
+  .btn:active { transform: translateY(.5px); }
+  .btn--solid { background: var(--ink); color: #fff; }
+  .btn--solid:hover { background: rgba(13,13,13,.85); }
+  .btn--green { background: var(--green-solid); color: #fff; }
+  .btn--green:hover { background: var(--green-ink); }
+  .btn--ghost { background: var(--paper); color: var(--ink); border-color: var(--ink-12); }
+  .btn--ghost:hover { border-color: var(--ink-25); }
+  .btn--plain { background: transparent; color: var(--ink-60); border-color: var(--ink-12); }
+  .btn--plain:hover { color: var(--ink); border-color: var(--ink-25); background: var(--paper); }
+  .btn--lg { padding: 12px 20px; font-size: 14px; }
+
+  /* page */
+  main { max-width: 1180px; margin: 0 auto; padding: 36px 28px 120px; }
+  .page-header {
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+    margin-bottom: 28px;
+  }
+  .h1 { font-size: 36px; font-weight: 800; letter-spacing: -0.02em; line-height: 1; margin: 0 0 6px; }
+  .sub { font-size: 14px; color: var(--ink-60); margin: 0; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px;
+    font-size: 10px; letter-spacing: .18em; text-transform: uppercase; font-weight: 700;
+    color: var(--green-ink); background: var(--green-bg);
+  }
+  .eyebrow::before { content: ""; width: 5px; height: 5px; border-radius: 999px; background: var(--green-solid); }
+  .slab {
+    position: relative; display: inline-block;
+  }
+  .slab::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: .06em; height: .14em;
+    background: var(--green-solid); border-radius: 999px; z-index: -1;
+  }
+
+  /* cards */
+  .card {
+    background: var(--paper); border: 1px solid var(--ink-08);
+    border-radius: 18px; box-shadow: 0 1px 0 rgba(0,0,0,.02);
+  }
+  .card--soft { background: linear-gradient(180deg, #fff 0%, #fdfbf7 100%); }
+
+  /* ─ tabs (segmented for state) ─ */
+  .state-switch {
+    display: inline-flex; padding: 4px; border-radius: 999px;
+    background: var(--ink-05); border: 1px solid var(--ink-08);
+    font-size: 12px;
+  }
+  .state-switch button {
+    all: unset; padding: 6px 14px; border-radius: 999px; cursor: pointer;
+    color: var(--ink-60); font-weight: 600;
+  }
+  .state-switch button.is-active { background: var(--paper); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+
+  /* ─────────── EMPTY STATE ─────────── */
+  .empty-grid {
+    display: grid; grid-template-columns: 1.15fr 1fr; gap: 20px;
+  }
+  .welcome {
+    padding: 32px; border-radius: 20px;
+    background: linear-gradient(140deg, #fff 0%, var(--green-bg) 140%);
+    border: 1px solid var(--ink-08);
+    position: relative; overflow: hidden;
+  }
+  .welcome::before {
+    content: ""; position: absolute; inset: auto -80px -80px auto; width: 280px; height: 280px;
+    border-radius: 50%; background: radial-gradient(closest-side, rgba(47,125,94,.2), transparent 70%);
+    pointer-events: none;
+  }
+  .welcome h2 {
+    font-size: 42px; line-height: .98; font-weight: 800; letter-spacing: -0.025em;
+    margin: 18px 0 14px; max-width: 14ch; position: relative;
+  }
+  .welcome p {
+    font-size: 15px; line-height: 1.55; color: var(--ink-60); max-width: 48ch; margin: 0;
+    position: relative;
+  }
+  .welcome-cta {
+    margin-top: 22px; display: flex; gap: 10px; flex-wrap: wrap; position: relative;
+  }
+
+  /* suggested-goal chips */
+  .starters { padding: 28px; border-radius: 20px; border: 1px solid var(--ink-08); background: var(--paper); }
+  .starters h3 { margin: 0; font-size: 12px; letter-spacing: .18em; text-transform: uppercase; font-weight: 700; color: var(--ink-40); }
+  .starters p { margin: 6px 0 18px; font-size: 13px; color: var(--ink-60); }
+  .starter-list { display: flex; flex-direction: column; gap: 8px; }
+  .starter {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; border-radius: 12px; border: 1px solid var(--ink-08); background: #fff;
+    cursor: pointer; transition: border-color .15s, background .15s, transform .1s;
+    text-align: left; width: 100%;
+  }
+  .starter:hover { border-color: var(--green-solid); background: var(--green-bg); }
+  .starter:hover .starter-arrow { transform: translateX(2px); color: var(--green-ink); }
+  .starter-ico {
+    width: 36px; height: 36px; border-radius: 10px; background: var(--green-bg);
+    display: inline-flex; align-items: center; justify-content: center; font-size: 18px;
+    flex-shrink: 0;
+  }
+  .starter-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+  .starter-sub { font-size: 12px; color: var(--ink-40); margin-top: 2px; }
+  .starter-arrow { margin-left: auto; color: var(--ink-25); transition: transform .15s, color .15s; font-size: 16px; }
+
+  /* three-step mini explainer */
+  .explain {
+    margin-top: 24px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+  }
+  .explain-step {
+    background: var(--paper); border: 1px solid var(--ink-08); border-radius: 14px; padding: 18px;
+  }
+  .explain-n {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 999px; background: var(--green-bg); color: var(--green-ink);
+    font-weight: 800; font-size: 12px; letter-spacing: .04em;
+  }
+  .explain-title { margin: 12px 0 4px; font-size: 14px; font-weight: 700; }
+  .explain-body { font-size: 13px; color: var(--ink-60); line-height: 1.5; margin: 0; }
+
+  /* ─────────── GOALS LIST ─────────── */
+  .list-header {
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 12px;
+    margin-bottom: 32px;
+  }
+  .list-title { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; margin: 0; }
+  .list-sub { font-size: 13px; color: var(--ink-40); margin: 2px 0 0; }
+
+  .goals-grid {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px;
+  }
+  .goal-card {
+    padding: 28px; border-radius: 20px; background: var(--paper); border: 1px solid var(--ink-08);
+    display: flex; flex-direction: column; gap: 22px;
+    transition: border-color .2s, transform .15s, box-shadow .2s;
+    cursor: pointer; position: relative; min-height: 220px;
+  }
+  .goal-card:hover { border-color: var(--ink-25); transform: translateY(-1px); box-shadow: 0 8px 24px -12px rgba(0,0,0,.08); }
+  .goal-card[data-status="done"] { background: var(--green-bg); border-color: var(--green-bg-2); }
+  .goal-card[data-status="done"] .goal-title { text-decoration: line-through; text-decoration-color: var(--green-solid); text-decoration-thickness: 2px; opacity: .85; }
+
+  .goal-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .goal-title-row { display: flex; align-items: center; gap: 14px; }
+  .goal-emoji {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: var(--green-bg); color: var(--green-ink);
+    display: inline-flex; align-items: center; justify-content: center; font-size: 22px;
+    flex-shrink: 0;
+  }
+  .goal-title { font-size: 22px; font-weight: 700; letter-spacing: -0.015em; margin: 0; }
+  .goal-level {
+    display: block; margin-top: 4px;
+    font-size: 12px; color: var(--ink-40); font-weight: 500;
+  }
+  .goal-actions { display: flex; gap: 6px; }
+  .goal-actions .mini {
+    width: 30px; height: 30px; border-radius: 999px; border: 1px solid var(--ink-12); background: #fff;
+    display: inline-flex; align-items: center; justify-content: center; color: var(--ink-60); cursor: pointer;
+  }
+  .goal-actions .mini:hover { color: var(--ink); border-color: var(--ink-25); }
+
+  /* progress */
+  .progress {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .progress-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: var(--ink-60); }
+  .progress-bar { height: 6px; background: var(--ink-05); border-radius: 999px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--green-solid); border-radius: 999px; }
+  .progress-num { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; font-size: 13px; }
+
+  /* footer row: light meta + days */
+  .goal-foot {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-top: auto;
+  }
+  .goal-foot-meta { font-size: 12px; color: var(--ink-40); font-variant-numeric: tabular-nums; }
+  .goal-foot-meta strong { color: var(--ink); font-weight: 700; }
+
+  /* day dots */
+  .day-dots { display: flex; gap: 4px; }
+  .day-dot {
+    width: 20px; height: 20px; border-radius: 6px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; color: var(--ink-25);
+    background: var(--ink-05);
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+  .day-dot.on { background: var(--green-bg); color: var(--green-ink); }
+
+  /* add-goal dashed card */
+  .add-card {
+    border: 1.5px dashed var(--ink-12); background: transparent;
+    min-height: 220px; border-radius: 20px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    color: var(--ink-40); cursor: pointer; text-align: center; padding: 28px;
+    transition: border-color .2s, background .2s, color .2s;
+  }
+  .add-card:hover { border-color: var(--green-solid); background: var(--green-bg); color: var(--green-ink); }
+  .add-card .plus {
+    width: 40px; height: 40px; border-radius: 50%; background: var(--ink-05);
+    display: inline-flex; align-items: center; justify-content: center; font-size: 20px;
+  }
+  .add-card:hover .plus { background: #fff; color: var(--green-ink); }
+  .add-card strong { font-weight: 700; font-size: 14px; color: inherit; }
+  .add-card span { font-size: 12px; color: inherit; opacity: .8; }
+
+  /* this-week strip at top of list */
+  .week-strip {
+    padding: 18px 22px; border-radius: 16px; background: var(--paper);
+    border: 1px solid var(--ink-08); margin-bottom: 20px;
+    display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 20px;
+  }
+  .week-strip-l { display: flex; flex-direction: column; gap: 2px; }
+  .week-strip-t { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-40); font-weight: 700; }
+  .week-strip-h { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+  .week-days {
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;
+  }
+  .week-day {
+    padding: 8px 4px; border-radius: 10px; background: var(--ink-05); border: 1px solid transparent;
+    text-align: center;
+  }
+  .week-day.has { background: var(--green-bg); border-color: var(--green-bg-2); }
+  .week-day.today { outline: 2px solid var(--green-solid); outline-offset: 2px; }
+  .wd-name { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-40); font-weight: 700; }
+  .week-day.has .wd-name { color: var(--green-ink); }
+  .wd-num { font-size: 14px; font-weight: 700; margin-top: 2px; }
+
+  /* minimal empty state */
+  .empty-min { padding: 40px 0 80px; }
+  .empty-inner { max-width: 560px; margin: 60px auto 0; text-align: center; display: flex; flex-direction: column; align-items: center; }
+  .empty-h { font-size: 52px; line-height: .98; font-weight: 800; letter-spacing: -0.03em; margin: 0 0 14px; max-width: 14ch; }
+  .empty-p { font-size: 15px; color: var(--ink-60); line-height: 1.55; margin: 0 0 28px; max-width: 44ch; }
+  .empty-steps {
+    margin-top: 40px; display: inline-flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px;
+    font-size: 12.5px; color: var(--ink-40);
+  }
+  .empty-steps .es-n {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; border-radius: 999px;
+    background: var(--green-bg); color: var(--green-ink);
+    font-weight: 700; font-size: 10px; margin-right: 6px; vertical-align: 1px;
+  }
+  .empty-steps .es-sep { color: var(--ink-25); }
+
+  /* focused prompt in empty state */
+  .fake-input {
+    display: flex; align-items: center; gap: 10px; margin-top: 22px; position: relative;
+    background: #fff; border: 1px solid var(--ink-12); border-radius: 14px; padding: 14px 14px 14px 18px;
+    box-shadow: 0 0 0 4px var(--green-bg);
+    max-width: 480px;
+  }
+  .fake-input-label { font-size: 11px; color: var(--ink-40); letter-spacing: .1em; text-transform: uppercase; font-weight: 700; }
+  .fake-input-text {
+    flex: 1; font-size: 16px; font-weight: 600; color: var(--ink); min-height: 20px;
+    display: inline-flex; align-items: center;
+  }
+  .caret { display: inline-block; width: 2px; height: 1em; background: var(--green-solid); margin-left: 4px; animation: blink 1s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* IA suggestion bar */
+  .ia-note {
+    margin-top: 40px; padding: 16px 20px; border-radius: 14px;
+    background: #fff; border: 1px dashed var(--ink-12);
+    display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 16px;
+    font-size: 12.5px; color: var(--ink-60);
+  }
+  .ia-note strong { color: var(--ink); font-weight: 700; }
+  .ia-note .pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    background: var(--green-bg); color: var(--green-ink);
+  }
+
+  @media (max-width: 960px) {
+    .empty-grid { grid-template-columns: 1fr; }
+    .goals-grid { grid-template-columns: 1fr; }
+    .explain { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ───────── NAV ───────── -->
+<header class="nav">
+  <div class="nav-inner">
+    <div class="nav-left">
+      <!-- curved ON TRACK wordmark -->
+      <svg viewBox="0 0 280 100" height="36" style="overflow: visible;" aria-label="ON TRACK">
+        <text x="0" y="0" text-anchor="middle" dominant-baseline="central"
+              font-family="Epilogue, sans-serif" font-weight="700" font-size="48" letter-spacing="-1.44"
+              fill="var(--ink)" transform="translate(54.73,66.89) skewX(-4.01) rotate(-24.25)">O</text>
+        <text x="0" y="0" text-anchor="middle" dominant-baseline="central"
+              font-family="Epilogue, sans-serif" font-weight="700" font-size="48" letter-spacing="-1.44"
+              fill="var(--ink)" transform="translate(85.15,50.56) skewX(-3.05) rotate(-17.66)">N</text>
+        <text x="0" y="0" text-anchor="middle" dominant-baseline="central"
+              font-family="Epilogue, sans-serif" font-weight="700" font-size="48" letter-spacing="-1.44"
+              fill="var(--ink)" transform="translate(129.68,44.33) skewX(1.22) rotate(6.77)">T</text>
+        <text x="0" y="0" text-anchor="middle" dominant-baseline="central"
+              font-family="Epilogue, sans-serif" font-weight="700" font-size="48" letter-spacing="-1.44"
+              fill="var(--ink)" transform="translate(159.22,52.44) skewX(1.22) rotate(6.77)">R</text>
+        <text x="0" y="0" text-anchor="middle" dominant-baseline="central"
+              font-family="Epilogue, sans-serif" font-weight="700" font-size="48" letter-spacing="-1.44"
+              fill="var(--ink)" transform="translate(189.69,53.98) skewX(1.22) rotate(6.77)">A</text>
+        <text x="0" y="0" text-anchor="middle" dominant-baseline="central"
+              font-family="Epilogue, sans-serif" font-weight="700" font-size="48" letter-spacing="-1.44"
+              fill="var(--ink)" transform="translate(221.08,52.40) skewX(-1.48) rotate(-8.26)">C</text>
+        <text x="0" y="0" text-anchor="middle" dominant-baseline="central"
+              font-family="Epilogue, sans-serif" font-weight="700" font-size="48" letter-spacing="-1.44"
+              fill="var(--ink)" transform="translate(254.24,35.58) skewX(-4.43) rotate(-27.61)">K</text>
+      </svg>
+    </div>
+    <nav class="nav-tabs" role="tablist">
+      <a class="nav-tab is-active" href="#"><span class="dot"></span>Goals</a>
+      <a class="nav-tab" href="#">Today</a>
+      <a class="nav-tab" href="#">Calendar</a>
+      <a class="nav-tab" href="#">Recap</a>
+    </nav>
+    <div class="nav-right">
+      <div class="state-switch" role="tablist" aria-label="Preview state">
+        <button data-state="empty" class="is-active">Empty</button>
+        <button data-state="list">Goals</button>
+      </div>
+      <div class="avatar" title="Angelo">A</div>
+    </div>
+  </div>
+</header>
+
+<!-- ───────── PAGE ───────── -->
+<main>
+
+  <!-- EMPTY STATE -->
+  <section id="state-empty" class="empty-min">
+    <div class="empty-inner">
+      <h1 class="empty-h">lets start <span class="slab">one step</span> at a time</h1>
+      <p class="empty-p">tell ontrack what you want to get good at. we'll plan your week around it.</p>
+
+      <div class="fake-input" role="presentation" aria-hidden="true">
+        <span class="fake-input-label">i want to</span>
+        <span class="fake-input-text" id="typer">learn guitar<span class="caret"></span></span>
+      </div>
+
+      <a href="#" class="btn btn--green btn--lg" style="margin-top: 22px;">create your first goal →</a>
+
+      <div class="empty-steps">
+        <span><span class="es-n">1</span> tell us the goal</span>
+        <span class="es-sep">—</span>
+        <span><span class="es-n">2</span> answer a few questions</span>
+        <span class="es-sep">—</span>
+        <span><span class="es-n">3</span> get your week</span>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- GOALS LIST STATE -->
+  <section id="state-list" hidden>
+    <div class="list-header">
+      <div>
+        <h1 class="h1" style="font-size: 44px; letter-spacing: -0.025em;">3 things <span class="slab">in motion.</span></h1>
+        <p class="sub">a quiet list. open one to see this week's plan.</p>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <a href="#" class="btn btn--ghost">+ add goal</a>
+      </div>
+    </div>
+
+    <div class="goals-grid">
+
+      <!-- Goal 1 -->
+      <article class="goal-card" data-status="active">
+        <div class="goal-top">
+          <div class="goal-title-row">
+            <span class="goal-emoji">🎸</span>
+            <div>
+              <h3 class="goal-title">learn guitar</h3>
+              <span class="goal-level">beginner · 4 hrs / week</span>
+            </div>
+          </div>
+          <div class="goal-actions">
+            <button class="mini" aria-label="edit goal">✎</button>
+          </div>
+        </div>
+
+        <div class="progress" aria-label="progress">
+          <div class="progress-row">
+            <span>apr 20 → may 20</span>
+            <span class="progress-num">46%</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width:46%"></div></div>
+        </div>
+
+        <div class="goal-foot">
+          <div class="goal-foot-meta"><strong>3 of 4</strong> sessions this week</div>
+          <div class="day-dots" aria-label="days">
+            <span class="day-dot on">m</span>
+            <span class="day-dot">t</span>
+            <span class="day-dot on">w</span>
+            <span class="day-dot">t</span>
+            <span class="day-dot on">f</span>
+            <span class="day-dot on">s</span>
+            <span class="day-dot on">s</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Goal 2 -->
+      <article class="goal-card" data-status="active">
+        <div class="goal-top">
+          <div class="goal-title-row">
+            <span class="goal-emoji">🏃</span>
+            <div>
+              <h3 class="goal-title">run a 10k</h3>
+              <span class="goal-level">intermediate · 3 sessions / week</span>
+            </div>
+          </div>
+          <div class="goal-actions">
+            <button class="mini" aria-label="edit goal">✎</button>
+          </div>
+        </div>
+
+        <div class="progress">
+          <div class="progress-row">
+            <span>apr 01 → jun 30</span>
+            <span class="progress-num">32%</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width:32%"></div></div>
+        </div>
+
+        <div class="goal-foot">
+          <div class="goal-foot-meta"><strong>2 of 3</strong> runs this week</div>
+          <div class="day-dots">
+            <span class="day-dot">m</span>
+            <span class="day-dot on">t</span>
+            <span class="day-dot">w</span>
+            <span class="day-dot on">t</span>
+            <span class="day-dot">f</span>
+            <span class="day-dot on">s</span>
+            <span class="day-dot">s</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Goal 3: completed -->
+      <article class="goal-card" data-status="done">
+        <div class="goal-top">
+          <div class="goal-title-row">
+            <span class="goal-emoji" style="background: var(--green-bg-2);">📚</span>
+            <div>
+              <h3 class="goal-title">read 12 books</h3>
+              <span class="goal-level" style="color: var(--green-ink);">completed · 13 weeks</span>
+            </div>
+          </div>
+          <div class="goal-actions">
+            <button class="mini" aria-label="view recap">👁</button>
+          </div>
+        </div>
+
+        <div class="progress">
+          <div class="progress-row">
+            <span>jan 01 → mar 31</span>
+            <span class="progress-num">100%</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div>
+        </div>
+
+        <div class="goal-foot">
+          <div class="goal-foot-meta"><strong>12 books</strong> · best streak 28 days</div>
+        </div>
+      </article>
+
+      <!-- Add goal dashed card -->
+      <button class="add-card">
+        <span class="plus">+</span>
+        <strong>add another goal</strong>
+        <span>one thing at a time is still best. but go on.</span>
+      </button>
+
+    </div>
+
+  </section>
+</main>
+
+<script>
+  // state switcher
+  const btns = document.querySelectorAll(".state-switch button");
+  const empty = document.getElementById("state-empty");
+  const list  = document.getElementById("state-list");
+  btns.forEach(b => b.addEventListener("click", () => {
+    btns.forEach(x => x.classList.toggle("is-active", x === b));
+    const s = b.dataset.state;
+    empty.hidden = s !== "empty";
+    list.hidden  = s !== "list";
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }));
+
+  // typewriter for the fake input
+  const words = ["learn guitar", "speak spanish", "run a 10k", "write every morning", "get stronger"];
+  const el = document.getElementById("typer");
+  let wi = 0, ci = 0, deleting = false;
+  function tick() {
+    const w = words[wi % words.length];
+    if (!deleting) {
+      ci++;
+      if (ci > w.length) { deleting = true; setTimeout(tick, 1400); return; }
+    } else {
+      ci--;
+      if (ci < 0) { deleting = false; wi++; ci = 0; }
+    }
+    el.innerHTML = w.slice(0, ci) + '<span class="caret"></span>';
+    setTimeout(tick, deleting ? 28 : 55);
+  }
+  tick();
+</script>
+
+</body>
+</html>

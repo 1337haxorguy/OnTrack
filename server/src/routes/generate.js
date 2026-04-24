@@ -1,6 +1,9 @@
 const express = require("express");
 const OpenAI = require("openai");
 const rateLimit = require("express-rate-limit");
+const { LIMITS_ENABLED, FREE_LIMITS } = require("../config/limits");
+const { optionalAuth } = require("../middleware/auth");
+const User = require("../../models/user");
 
 const router = express.Router();
 
@@ -522,8 +525,17 @@ CONSTRAINTS:
 - Output JSON only and strictly conform to the provided output schema.${previousWeekSection}`;
 }
 
-router.post("/", generateLimiter, async (req, res) => {
+router.post("/", generateLimiter, optionalAuth, async (req, res) => {
   const { user_profile, goals, availability, preferences, generation_request, previous_week } = req.body;
+
+  // Freemium usage gate — only active when LIMITS_ENABLED is true and the user is authenticated
+  if (LIMITS_ENABLED && req.auth) {
+    const sub = req.auth.payload.sub;
+    const user = await User.findOne({ sub });
+    if (user && (user.usage?.generations ?? 0) >= FREE_LIMITS.generations) {
+      return res.status(429).json({ error: "generation_limit_reached" });
+    }
+  }
 
   let userMessage;
 
@@ -625,17 +637,34 @@ ${timeBlockRule}
     }
 
     res.json(result);
+
+    // Increment the user's generation counter after a successful response
+    if (LIMITS_ENABLED && req.auth) {
+      User.findOneAndUpdate(
+        { sub: req.auth.payload.sub },
+        { $inc: { "usage.generations": 1 } }
+      ).catch(() => {}); // non-fatal
+    }
   } catch (err) {
     console.error("OpenAI API error:", err.message);
     res.status(500).json({ error: "Failed to generate plan." });
   }
 });
 
-router.post("/regenerate-day", lightLimiter, async (req, res) => {
+router.post("/regenerate-day", lightLimiter, optionalAuth, async (req, res) => {
   const { date, current_day_plan, feedback, goals, availability, preserve_times } = req.body;
 
   if (!date || !goals || !availability) {
     return res.status(400).json({ error: "date, goals, and availability are required." });
+  }
+
+  // Freemium usage gate
+  if (LIMITS_ENABLED && req.auth) {
+    const sub = req.auth.payload.sub;
+    const user = await User.findOne({ sub });
+    if (user && (user.usage?.generations ?? 0) >= FREE_LIMITS.generations) {
+      return res.status(429).json({ error: "generation_limit_reached" });
+    }
   }
 
   const dayOfWeek = new Date(date + "T00:00:00").toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
@@ -710,6 +739,14 @@ CONSTRAINTS:
     }
 
     res.json(dayPlan);
+
+    // Increment the user's generation counter after a successful response
+    if (LIMITS_ENABLED && req.auth) {
+      User.findOneAndUpdate(
+        { sub: req.auth.payload.sub },
+        { $inc: { "usage.generations": 1 } }
+      ).catch(() => {}); // non-fatal
+    }
   } catch (err) {
     console.error("OpenAI API error:", err.message);
     res.status(500).json({ error: "Failed to regenerate day." });

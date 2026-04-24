@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import AuthModal from "../components/AuthModal";
+import CurvedWordmark from "../components/CurvedWordmark";
 
 // ── CSS vars (sage accent, warm cream bg) ───────────────────────────────────
 const V = {
@@ -44,35 +45,6 @@ function useInView(ref: React.RefObject<HTMLElement | null>, threshold = 0.25) {
     return () => io.disconnect();
   }, []);
   return seen;
-}
-
-// ── Wordmark ─────────────────────────────────────────────────────────────────
-
-const LETTERS = [
-  { ch: "O", cx: 54.73,  cy: 66.89, r: -24.25, sk: -4.01 },
-  { ch: "N", cx: 85.15,  cy: 50.56, r: -17.66, sk: -3.05 },
-  { ch: "T", cx: 129.68, cy: 44.33, r:   6.77, sk:  1.22 },
-  { ch: "R", cx: 159.22, cy: 52.44, r:   6.77, sk:  1.22 },
-  { ch: "A", cx: 189.69, cy: 53.98, r:   6.77, sk:  1.22 },
-  { ch: "C", cx: 221.08, cy: 52.40, r:  -8.26, sk: -1.48 },
-  { ch: "K", cx: 254.24, cy: 35.58, r: -27.61, sk: -4.43 },
-];
-
-function CurvedWordmark({ scale = 1 }: { scale?: number }) {
-  return (
-    <svg viewBox="0 0 280 100" height={62 * scale}
-      style={{ width: "auto", display: "block", overflow: "visible", userSelect: "none" }}
-      aria-label="ON TRACK"
-    >
-      {LETTERS.map(({ ch, cx, cy, r, sk }) => (
-        <text key={ch} x="0" y="0" textAnchor="middle" dominantBaseline="central"
-          fontFamily="Epilogue, sans-serif" fontWeight="700" fontSize="48"
-          fill="currentColor" letterSpacing="-1.44"
-          transform={`translate(${cx},${cy}) skewX(${sk}) rotate(${r})`}
-        >{ch}</text>
-      ))}
-    </svg>
-  );
 }
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
@@ -118,10 +90,10 @@ function Nav({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: () => voi
 
 function HeroSplit({ onSignUp, onContinue }: { onSignUp: () => void; onContinue: () => void }) {
   return (
-    <section id="top" style={{ paddingTop: 96, paddingBottom: 80, position: "relative", zIndex: 1 }}>
+    <section id="top" style={{ minHeight: "100vh", paddingTop: 96, paddingBottom: 80, position: "relative", zIndex: 1, display: "flex", alignItems: "center" }}>
       <div style={{
         maxWidth: 1280, margin: "0 auto", padding: "0 32px",
-        display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 64, alignItems: "center",
+        display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 96, alignItems: "center",
       }}>
         <div>
           <h1 className="landing-reveal" style={{
@@ -132,7 +104,7 @@ function HeroSplit({ onSignUp, onContinue }: { onSignUp: () => void; onContinue:
             <div>your <UnderlinedWord>pace</UnderlinedWord></div>
           </h1>
           <p className="landing-reveal" style={{ marginTop: 24, fontSize: 18, lineHeight: 1.5, color: V.ink60, maxWidth: 420, fontWeight: 400 }}>
-            a weekly plan for the thing you keep meaning to come back to.
+            a weekly plan for the thing you keep meaning to come back to
           </p>
           <div className="landing-reveal" style={{ marginTop: 32, display: "flex", gap: 12, flexWrap: "wrap" }}>
             <button onClick={onSignUp} style={btnSolid}>start your plan →</button>
@@ -205,8 +177,8 @@ function HowItWorks() {
   const steps = [
     {
       n: "01", label: "step 1",
-      title: "tell us what you're building.",
-      body: "pick a skill, a habit, a craft. not a deadline project — something you want to be genuinely good at, weeks and months from now.",
+      title: "tell us what you're building",
+      body: "pick a skill, a hobby, a craft, something you want to work towards in the long term",
       visual: <GoalInputVisual />,
     },
     {
@@ -217,8 +189,8 @@ function HowItWorks() {
     },
     {
       n: "03", label: "step 3",
-      title: "get a week that fits.",
-      body: "specific sessions, exact times, real tasks — automatically blocked around your existing life. every week, ontrack shows up with you.",
+      title: "get a schedule that keeps you ontrack",
+      body: "real tasks automatically blocked around your availability. every week, ontrack will get you closer to your goals.",
       visual: <PlanCard />,
     },
   ];

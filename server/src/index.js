@@ -4,7 +4,7 @@ const rateLimit = require("express-rate-limit");
 require("dotenv").config({ path: "../.env" });
 const mongoose = require("mongoose")
 
-const jwtCheck = require("./middleware/auth");
+const { jwtCheck } = require("./middleware/auth");
 const generateRoute = require("./routes/generate");
 const playgroundRoute = require("./routes/playground");
 const syncUserRoute = require("./routes/syncUser");
