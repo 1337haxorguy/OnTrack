@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { useApp, FREE_LIMITS } from "../context/AppContext";
+import { useApp } from "../context/AppContext";
 import type { DayPlan, TimeBlock } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
 
@@ -130,7 +130,7 @@ interface DragState {
 
 // ---- Component ----
 export default function Calendar() {
-  const { goals, setGoals, schedule, plan, setPlan, usage, incrementGenerations, limitsEnabled } = useApp();
+  const { goals, setGoals, schedule, plan, setPlan, incrementGenerations } = useApp();
   const { isAuthenticated, getToken } = useAuth();
 
   useEffect(() => { document.title = "Calendar — OnTrack"; }, []);

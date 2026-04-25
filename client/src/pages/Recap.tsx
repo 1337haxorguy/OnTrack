@@ -11,6 +11,7 @@ function toDateStr(d: Date) {
 
 export default function Recap() {
   const { goals, schedule, plan, setPlan, showToast, usage, incrementGenerations, limitsEnabled } = useApp();
+  const { isAuthenticated, getToken } = useAuth();
   const genLimitHit = limitsEnabled && isAuthenticated && usage.generations >= FREE_LIMITS.generations;
 
   const toggleBlockComplete = (dayIdx: number, blockIdx: number) => {
@@ -45,7 +46,6 @@ export default function Recap() {
       )
     );
   };
-  const { isAuthenticated, getToken } = useAuth();
 
   useEffect(() => { document.title = "Weekly Recap — OnTrack"; }, []);
 
