@@ -84,3 +84,16 @@ input[type="range"].ontrack-range::-moz-range-thumb {
   opacity: 1;
   transform: none;
 }
+
+/* ── Today page ──────────────────────────────── */
+.today-block-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows .3s ease;
+}
+.today-block-body.is-open {
+  grid-template-rows: 1fr;
+}
+.today-block-body > div {
+  overflow: hidden;
+}

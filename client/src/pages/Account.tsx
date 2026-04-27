@@ -206,7 +206,12 @@ export default function Account() {
         <section className={cardCls}>
           <h2 className="text-sm font-semibold text-black">Session</h2>
           <button
-            onClick={() => signOut()}
+            onClick={async () => {
+              setGoals([]);
+              setPlan(null);
+              setAvatar(null);
+              await signOut();
+            }}
             className="w-full px-4 py-2.5 border border-black/10 rounded-full text-sm text-black/60 hover:border-black/20 hover:text-black transition-colors text-left"
           >
             Sign out
