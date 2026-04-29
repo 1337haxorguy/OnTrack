@@ -7,11 +7,13 @@ import Profile from "./pages/Profile";
 import Account from "./pages/Account";
 import Today from "./pages/Today";
 import Recap from "./pages/Recap";
+import Upgrade from "./pages/Upgrade";
+import UpgradeSuccess from "./pages/UpgradeSuccess";
+import UpgradeCancel from "./pages/UpgradeCancel";
 import TestGenerate from "./pages/TestGenerate";
 import Landing from "./pages/Landing";
-import OnboardingTour from "./components/OnboardingTour";
 import AuthModal from "./components/AuthModal";
-import { useApp } from "./context/AppContext";
+import { useApp, FREE_LIMITS } from "./context/AppContext";
 import { useAuth } from "./context/AuthContext";
 
 const NAV_LINKS = [
@@ -32,7 +34,7 @@ function ProtectedRoute({ element }: { element: React.ReactElement }) {
 
 function App() {
   const { user, isAuthenticated, isLoading, openAuthModal } = useAuth();
-  const { dataLoaded, avatar, toast, dismissToast, goals } = useApp();
+  const { dataLoaded, avatar, toast, dismissToast, goals, usage, limitsEnabled, unlimited } = useApp();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -156,6 +158,24 @@ function App() {
         </div>
       </nav>
 
+      {/* Upgrade banner — shown when free user hits generation limit */}
+      {limitsEnabled && isAuthenticated && !unlimited && usage.generations >= FREE_LIMITS.generations && (
+        <div className="border-b border-black/6 bg-white">
+          <div className="max-w-[1180px] mx-auto px-7 py-2.5 flex items-center justify-between gap-4">
+            <p className="text-xs text-black/50">
+              You've used all <span className="font-semibold text-black">{FREE_LIMITS.generations}</span> free generations.
+            </p>
+            <Link
+              to="/upgrade"
+              className="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold text-white transition-colors"
+              style={{ background: "#2F7D5E" }}
+            >
+              Upgrade to Pro →
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Page content */}
       <main className="max-w-[1180px] mx-auto px-7 pt-9 pb-[120px]">
         <Routes>
@@ -166,13 +186,13 @@ function App() {
           <Route path="/calendar"   element={dataLoaded ? <Calendar /> : <></>} />
           <Route path="/profile"    element={<ProtectedRoute element={dataLoaded ? <Profile />   : <></>} />} />
           <Route path="/recap"      element={<ProtectedRoute element={dataLoaded ? <Recap /> : <></>} />} />
-          <Route path="/account"    element={<ProtectedRoute element={<Account />} />} />
-          <Route path="/test"       element={<ProtectedRoute element={<TestGenerate />} />} />
+          <Route path="/account"         element={<ProtectedRoute element={<Account />} />} />
+          <Route path="/upgrade"         element={<Upgrade />} />
+          <Route path="/upgrade/success" element={<UpgradeSuccess />} />
+          <Route path="/upgrade/cancel"  element={<UpgradeCancel />} />
+          <Route path="/test"            element={<ProtectedRoute element={<TestGenerate />} />} />
         </Routes>
       </main>
-
-      {/* Onboarding tour */}
-      <OnboardingTour />
 
       {/* Auth modal */}
       <AuthModal />

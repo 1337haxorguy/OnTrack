@@ -46,7 +46,17 @@
       "Bash(npx vite *)",
       "Bash(cp \"/Users/angelodelafuente/.claude/projects/-Users-angelodelafuente-Desktop-OnTrack/d9a5f4e1-4b5d-4433-9241-522c6cf38419/tool-results/webfetch-1777264637529-byzyht.bin\" /tmp/design_handoff.gz)",
       "Bash(gunzip -f /tmp/design_handoff.gz)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Read(//private/tmp/**)",
+      "Bash(mkdir -p /tmp/design_extracted)",
+      "Bash(tar -xf /tmp/design_handoff -C /tmp/design_extracted)",
+      "Bash(xargs ls *)",
+      "Bash(cp \"/Users/angelodelafuente/.claude/projects/-Users-angelodelafuente-Desktop-OnTrack/03a9b70a-9887-4689-877a-f742d86e0601/tool-results/webfetch-1777407528747-lhzael.bin\" /tmp/design_file.bin)",
+      "Bash(gunzip -c /tmp/design_file.bin)",
+      "Bash(mkdir *)",
+      "Bash(curl -sI \"https://api.anthropic.com/v1/design/h/9XOkJkRdEGDfjekHPThfiA\")",
+      "Bash(curl -s \"https://api.anthropic.com/v1/design/h/9XOkJkRdEGDfjekHPThfiA\" -o /tmp/design2.bin -w \"%{http_code}\")",
+      "Bash(curl -s \"https://api.anthropic.com/v1/design/h/hLNBVJNcWHqP9-M6fH2bjA\" -o /tmp/design3.bin -w \"%{http_code}\")"
     ]
   }
 }

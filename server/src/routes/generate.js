@@ -1,9 +1,17 @@
 const express = require("express");
 const OpenAI = require("openai");
 const rateLimit = require("express-rate-limit");
-const { LIMITS_ENABLED, FREE_LIMITS } = require("../config/limits");
+const { LIMITS_ENABLED, FREE_LIMITS, UNLIMITED_EMAILS } = require("../config/limits");
 const { optionalAuth } = require("../middleware/auth");
 const User = require("../../models/user");
+
+async function isUnlimited(req) {
+  if (!req.auth) return false;
+  const email = (req.auth.payload.email || "").toLowerCase();
+  if (UNLIMITED_EMAILS.has(email)) return true;
+  const user = await User.findOne({ sub: req.auth.payload.sub }, { subscriptionStatus: 1 });
+  return user?.subscriptionStatus === "active";
+}
 
 const router = express.Router();
 
@@ -529,7 +537,7 @@ router.post("/", generateLimiter, optionalAuth, async (req, res) => {
   const { user_profile, goals, availability, preferences, generation_request, previous_week } = req.body;
 
   // Freemium usage gate — only active when LIMITS_ENABLED is true and the user is authenticated
-  if (LIMITS_ENABLED && req.auth) {
+  if (LIMITS_ENABLED && req.auth && !await isUnlimited(req)) {
     const sub = req.auth.payload.sub;
     const user = await User.findOne({ sub });
     if (user && (user.usage?.generations ?? 0) >= FREE_LIMITS.generations) {
@@ -639,7 +647,7 @@ ${timeBlockRule}
     res.json(result);
 
     // Increment the user's generation counter after a successful response
-    if (LIMITS_ENABLED && req.auth) {
+    if (LIMITS_ENABLED && req.auth && !await isUnlimited(req)) {
       User.findOneAndUpdate(
         { sub: req.auth.payload.sub },
         { $inc: { "usage.generations": 1 } }
@@ -659,7 +667,7 @@ router.post("/regenerate-day", lightLimiter, optionalAuth, async (req, res) => {
   }
 
   // Freemium usage gate
-  if (LIMITS_ENABLED && req.auth) {
+  if (LIMITS_ENABLED && req.auth && !await isUnlimited(req)) {
     const sub = req.auth.payload.sub;
     const user = await User.findOne({ sub });
     if (user && (user.usage?.generations ?? 0) >= FREE_LIMITS.generations) {
@@ -741,7 +749,7 @@ CONSTRAINTS:
     res.json(dayPlan);
 
     // Increment the user's generation counter after a successful response
-    if (LIMITS_ENABLED && req.auth) {
+    if (LIMITS_ENABLED && req.auth && !await isUnlimited(req)) {
       User.findOneAndUpdate(
         { sub: req.auth.payload.sub },
         { $inc: { "usage.generations": 1 } }

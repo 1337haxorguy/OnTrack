@@ -1,8 +1,9 @@
 import { useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { useApp } from "../context/AppContext";
+import { useApp, FREE_LIMITS } from "../context/AppContext";
 
-const cardCls = "rounded-2xl border border-black/8 bg-white shadow-sm p-5 flex flex-col gap-4";
+const API_BASE = import.meta.env.VITE_API_BASE;
 
 async function resizeToBase64(file: File, size = 128): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -16,7 +17,6 @@ async function resizeToBase64(file: File, size = 128): Promise<string> {
         canvas.width = size;
         canvas.height = size;
         const ctx = canvas.getContext("2d")!;
-        // Center-crop to square before scaling
         const min = Math.min(img.width, img.height);
         const sx = (img.width - min) / 2;
         const sy = (img.height - min) / 2;
@@ -29,35 +29,37 @@ async function resizeToBase64(file: File, size = 128): Promise<string> {
   });
 }
 
-function DangerButton({
+function DangerRow({
   label,
+  sub,
   confirmLabel,
-  description,
+  confirmDesc,
   onConfirm,
 }: {
   label: string;
+  sub: string;
   confirmLabel: string;
-  description: string;
+  confirmDesc: string;
   onConfirm: () => void;
 }) {
-  const [confirming, setConfirming] = useState(false);
+  const [open, setOpen] = useState(false);
 
-  if (confirming) {
+  if (open) {
     return (
-      <div className="flex items-center gap-3 p-3 rounded-xl bg-red-50 border border-red-200">
-        <p className="text-sm text-red-700 flex-1">{description}</p>
-        <div className="flex gap-2 shrink-0">
+      <div className="px-5 py-4 bg-red-50">
+        <p className="text-[13px] text-red-800 leading-snug mb-3">{confirmDesc}</p>
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => { onConfirm(); setConfirming(false); }}
-            className="px-3 py-1.5 text-xs bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors font-medium"
+            onClick={() => { onConfirm(); setOpen(false); }}
+            className="px-4 py-1.5 text-[12px] font-semibold bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors"
           >
             {confirmLabel}
           </button>
           <button
-            onClick={() => setConfirming(false)}
-            className="px-3 py-1.5 text-xs text-black/40 hover:text-black transition-colors"
+            onClick={() => setOpen(false)}
+            className="px-3 py-1.5 text-[12px] font-medium text-black/40 hover:text-black transition-colors"
           >
-            Cancel
+            cancel
           </button>
         </div>
       </div>
@@ -66,29 +68,70 @@ function DangerButton({
 
   return (
     <button
-      onClick={() => setConfirming(true)}
-      className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-black/8 hover:border-red-200 hover:bg-red-50 text-left transition-colors group"
+      onClick={() => setOpen(true)}
+      className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-black/[0.05] transition-colors group"
     >
-      <span className="text-sm text-black/70 group-hover:text-red-700 transition-colors">{label}</span>
-      <span className="text-xs text-black/25 group-hover:text-red-500 transition-colors">Remove</span>
+      <div>
+        <p className="text-[14px] font-medium text-black/60 group-hover:text-red-600 transition-colors leading-tight">
+          {label}
+        </p>
+        <p className="text-[12px] text-black/40 mt-0.5">{sub}</p>
+      </div>
+      <svg
+        className="w-3.5 h-3.5 text-black/25 group-hover:text-red-300 transition-colors shrink-0 ml-4"
+        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+      </svg>
     </button>
   );
 }
 
+function SectionHead({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-black/40 mb-2 px-0.5">
+      {children}
+    </p>
+  );
+}
+
+const group = "bg-white rounded-2xl border border-black/8 overflow-hidden divide-y divide-black/[0.05]";
+
 export default function Account() {
-  const { user, signOut } = useAuth();
-  const { setGoals, setPlan, avatar, setAvatar } = useApp();
+  const { user, signOut, getToken } = useAuth();
+  const { setGoals, setPlan, avatar, setAvatar, subscriptionStatus } = useApp();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
-  const initials = user
-    ? (user.user_metadata?.full_name || user.email || "?")
-        .split(" ")
-        .map((w: string) => w[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
-    : "?";
+  const openBillingPortal = async () => {
+    setPortalLoading(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API_BASE}/api/stripe/create-portal-session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error();
+      const { url } = await res.json();
+      window.location.href = url;
+    } catch {
+      setPortalLoading(false);
+    }
+  };
+
+  const isPro = subscriptionStatus === "active";
+
+  const displayName = user?.user_metadata?.full_name as string | undefined;
+  const email = user?.email as string | undefined;
+
+  const initials = (displayName || email || "?")
+    .split(" ")
+    .map((w: string) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -99,44 +142,51 @@ export default function Account() {
       setAvatar(base64);
     } finally {
       setUploading(false);
-      // Reset so the same file can be re-selected
       e.target.value = "";
     }
   };
 
   return (
-    <div className="max-w-lg pb-20">
-      <h1 className="text-xl font-bold text-black mb-8">Account</h1>
+    <div
+      className="pb-24 w-full"
+      style={{ fontFamily: "Epilogue, system-ui, -apple-system, sans-serif" }}
+    >
+      <h1 className="text-[28px] font-extrabold text-black tracking-[-0.02em] mb-8">
+        account
+      </h1>
 
-      <div className="flex flex-col gap-4">
+      {/* ── Two-column grid on lg+, stacked on mobile ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 items-start">
 
-        {/* ── PROFILE ── */}
-        <section className={cardCls}>
-          <h2 className="text-sm font-semibold text-black">Profile</h2>
-          <div className="flex items-center gap-4">
+        {/* ── LEFT: Profile card ── */}
+        <div className="flex flex-col gap-4">
+          <div className="bg-white rounded-2xl border border-black/8 p-6 flex flex-col items-center text-center gap-4">
 
-            {/* Avatar with upload overlay */}
-            <div className="relative shrink-0 group">
-              <div className="w-16 h-16 rounded-full overflow-hidden bg-black/80 flex items-center justify-center">
+            {/* Avatar */}
+            <div className="relative group">
+              <div
+                className="w-24 h-24 rounded-full overflow-hidden bg-black flex items-center justify-center cursor-pointer"
+                onClick={() => fileInputRef.current?.click()}
+              >
                 {avatar ? (
                   <img src={avatar} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-lg font-semibold text-white select-none">{initials}</span>
+                  <span className="text-2xl font-bold text-white select-none">{initials}</span>
                 )}
               </div>
 
-              {/* Upload overlay */}
+              {/* Camera badge */}
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="absolute inset-0 rounded-full flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity disabled:cursor-wait"
-                aria-label="Change profile picture"
+                aria-label="Change photo"
+                className="absolute -bottom-0.5 -right-0.5 w-8 h-8 rounded-full bg-white border border-black/[0.12] shadow-sm flex items-center justify-center hover:bg-black/[0.05] transition-colors disabled:cursor-wait"
               >
                 {uploading ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <div className="w-3.5 h-3.5 border-[1.5px] border-black/20 border-t-black/60 rounded-full animate-spin" />
                 ) : (
-                  <svg className="w-5 h-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                  <svg className="w-4 h-4 text-black/40" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
                   </svg>
                 )}
               </button>
@@ -150,74 +200,136 @@ export default function Account() {
               />
             </div>
 
-            {/* Name / email */}
-            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-              {user?.user_metadata?.full_name && (
-                <p className="text-base font-medium text-black truncate">{user.user_metadata.full_name}</p>
+            {/* Identity */}
+            <div className="flex flex-col gap-0.5 w-full min-w-0">
+              {displayName && (
+                <p className="text-[16px] font-semibold text-black truncate leading-tight">
+                  {displayName}
+                </p>
               )}
-              {user?.email && (
-                <p className="text-sm text-black/40 truncate">{user.email}</p>
+              {email && (
+                <p className="text-[13px] text-black/40 truncate">{email}</p>
               )}
-              <p className="text-xs text-black/25 mt-1">Managed by your login provider</p>
+              <p className="text-[11px] text-black/25 mt-1">managed by your login provider</p>
+            </div>
+
+            {/* Photo action */}
+            {avatar ? (
+              <button
+                onClick={() => setAvatar(null)}
+                className="text-[12px] text-black/40 hover:text-red-500 transition-colors -mt-1"
+              >
+                remove photo
+              </button>
+            ) : null}
+          </div>
+
+          {/* ── Sign out (bottom of left col on desktop) ── */}
+          <div className={group}>
+            <button
+              onClick={async () => {
+                setSigningOut(true);
+                setGoals([]);
+                setPlan(null);
+                setAvatar(null);
+                await signOut();
+              }}
+              disabled={signingOut}
+              className="w-full flex items-center justify-between px-5 py-4 text-left group hover:bg-red-50/70 transition-colors disabled:opacity-50"
+            >
+              <p className="text-[14px] font-medium text-red-500 group-hover:text-red-600 transition-colors">
+                {signingOut ? "signing out…" : "sign out"}
+              </p>
+              {signingOut ? (
+                <div className="w-3.5 h-3.5 border-[1.5px] border-red-300 border-t-red-500 rounded-full animate-spin" />
+              ) : (
+                <svg className="w-3.5 h-3.5 text-red-300 group-hover:text-red-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* ── RIGHT: Settings ── */}
+        <div className="flex flex-col gap-6">
+
+          {/* Plan */}
+          <div>
+            <SectionHead>plan</SectionHead>
+            <div className={group}>
+              <div className="px-5 py-4 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[14px] font-semibold text-black leading-tight">
+                    {isPro ? "ontrack pro" : "free plan"}
+                  </p>
+                  <p className="text-[13px] text-black/40 mt-0.5">
+                    {isPro ? "unlimited generations" : `${FREE_LIMITS.generations} generations included`}
+                  </p>
+                </div>
+                {isPro ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-[0.14em] bg-[#E8F1EC] text-[#1F5E46] shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#2F7D5E]" />
+                    pro
+                  </span>
+                ) : (
+                  <Link
+                    to="/upgrade"
+                    className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-semibold text-white bg-[#2F7D5E] hover:bg-[#1F5E46] transition-colors"
+                  >
+                    upgrade →
+                  </Link>
+                )}
+              </div>
+
+              {isPro && (
+                <button
+                  onClick={openBillingPortal}
+                  disabled={portalLoading}
+                  className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-black/[0.05] transition-colors group disabled:opacity-50"
+                >
+                  <p className="text-[14px] font-medium text-black/60">manage billing</p>
+                  {portalLoading ? (
+                    <div className="w-3.5 h-3.5 border-[1.5px] border-black/20 border-t-black/50 rounded-full animate-spin" />
+                  ) : (
+                    <svg className="w-3.5 h-3.5 text-black/25 group-hover:text-black/50 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  )}
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Remove photo */}
-          {avatar && (
-            <button
-              onClick={() => setAvatar(null)}
-              className="self-start text-xs text-black/40 hover:text-red-500 transition-colors"
-            >
-              Remove photo
-            </button>
-          )}
-        </section>
-
-        {/* ── DATA ── */}
-        <section className={cardCls}>
+          {/* Data */}
           <div>
-            <h2 className="text-sm font-semibold text-black mb-1">Your data</h2>
-            <p className="text-xs text-black/40">These actions are permanent and cannot be undone.</p>
+            <SectionHead>data</SectionHead>
+            <div className={group}>
+              <DangerRow
+                label="Clear current plan"
+                sub="Keeps your goals and schedule intact"
+                confirmLabel="Clear plan"
+                confirmDesc="your generated plan will be deleted. goals and availability won't be affected."
+                onConfirm={() => setPlan(null)}
+              />
+              <DangerRow
+                label="Clear all goals"
+                sub="Permanently removes every goal"
+                confirmLabel="Clear goals"
+                confirmDesc="all goals will be permanently deleted. this cannot be undone."
+                onConfirm={() => setGoals([])}
+              />
+              <DangerRow
+                label="Clear everything"
+                sub="Goals, plan, and all data"
+                confirmLabel="Clear all"
+                confirmDesc="all goals and your current plan will be permanently deleted."
+                onConfirm={() => { setGoals([]); setPlan(null); }}
+              />
+            </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <DangerButton
-              label="Clear current plan"
-              confirmLabel="Yes, clear plan"
-              description="This will delete your generated plan. Your goals and schedule won't be affected."
-              onConfirm={() => setPlan(null)}
-            />
-            <DangerButton
-              label="Clear all goals"
-              confirmLabel="Yes, clear goals"
-              description="This will permanently delete all your goals."
-              onConfirm={() => setGoals([])}
-            />
-            <DangerButton
-              label="Clear everything"
-              confirmLabel="Yes, clear all"
-              description="This will delete all your goals and your current plan."
-              onConfirm={() => { setGoals([]); setPlan(null); }}
-            />
-          </div>
-        </section>
-
-        {/* ── SIGN OUT ── */}
-        <section className={cardCls}>
-          <h2 className="text-sm font-semibold text-black">Session</h2>
-          <button
-            onClick={async () => {
-              setGoals([]);
-              setPlan(null);
-              setAvatar(null);
-              await signOut();
-            }}
-            className="w-full px-4 py-2.5 border border-black/10 rounded-full text-sm text-black/60 hover:border-black/20 hover:text-black transition-colors text-left"
-          >
-            Sign out
-          </button>
-        </section>
-
+        </div>
       </div>
     </div>
   );

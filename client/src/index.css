@@ -85,6 +85,15 @@ input[type="range"].ontrack-range::-moz-range-thumb {
   transform: none;
 }
 
+/* ── Slab accent underline (calendar / goals header) ── */
+.cal-slab {
+  position: relative; display: inline-block;
+}
+.cal-slab::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: .06em; height: .14em;
+  background: #2F7D5E; border-radius: 999px; z-index: -1;
+}
+
 /* ── Today page ──────────────────────────────── */
 .today-block-body {
   display: grid;

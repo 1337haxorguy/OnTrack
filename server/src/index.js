@@ -9,6 +9,7 @@ const generateRoute = require("./routes/generate");
 const playgroundRoute = require("./routes/playground");
 const syncUserRoute = require("./routes/syncUser");
 const userDataRoute = require("./routes/userData");
+const stripeRoute = require("./routes/stripe");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,11 +24,16 @@ const ALLOWED_ORIGINS = [
 ].filter(Boolean);
 
 app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));
+
+// Stripe webhook must receive the raw body — register before express.json()
+app.use("/api/stripe/webhook", express.raw({ type: "application/json" }));
+
 app.use(express.json());
 
 app.use("/api/generate", generateRoute);
 app.use("/api/sync-user", jwtCheck, syncUserRoute);
 app.use("/api/user-data", jwtCheck, userDataRoute);
+app.use("/api/stripe", stripeRoute);
 app.use("/api/playground", playgroundRoute);
 
 app.listen(PORT, () => {

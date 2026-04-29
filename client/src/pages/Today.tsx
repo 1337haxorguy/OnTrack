@@ -55,9 +55,9 @@ function attributeBlock(block: TimeBlock, goals: Goal[]): string | null {
 }
 
 export default function Today() {
-  const { goals, setGoals, schedule, plan, setPlan, usage, incrementGenerations, limitsEnabled } = useApp();
+  const { goals, setGoals, schedule, plan, setPlan, usage, incrementGenerations, limitsEnabled, unlimited } = useApp();
   const { isAuthenticated, getToken } = useAuth();
-  const genLimitHit = limitsEnabled && isAuthenticated && usage.generations >= FREE_LIMITS.generations;
+  const genLimitHit = limitsEnabled && isAuthenticated && !unlimited && usage.generations >= FREE_LIMITS.generations;
 
   useEffect(() => { document.title = "Today — OnTrack"; }, []);
 
@@ -297,9 +297,8 @@ export default function Today() {
     setPendingSave(null);
   };
 
-  // ── Empty: no plan ──────────────────────────────────────────────────────────
-  if (!plan) {
-    const hasGoals = goals.length > 0;
+  // ── Empty: no goals ──────────────────────────────────────────────────────────
+  if (!goals.length) {
     return (
       <div style={{ fontFamily: "Epilogue, system-ui, sans-serif" }} className="flex flex-col items-center justify-center py-32 text-center">
         <div className="w-12 h-12 rounded-2xl bg-[#E8F1EC] flex items-center justify-center mb-5">
@@ -307,27 +306,13 @@ export default function Today() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
           </svg>
         </div>
-        {hasGoals ? (
-          <>
-            <h2 className="text-xl font-bold text-black mb-2">no plan generated yet</h2>
-            <p className="text-black/40 mb-6 text-sm max-w-xs leading-relaxed">
-              you have {goals.length} goal{goals.length !== 1 && "s"} set up. head to goals and hit <span className="text-black font-medium">generate plan</span> to get your week scheduled.
-            </p>
-            <Link to="/" className="px-5 py-2.5 bg-[#2F7D5E] hover:bg-[#1F5E46] text-white rounded-full text-sm font-semibold transition-colors">
-              generate my plan →
-            </Link>
-          </>
-        ) : (
-          <>
-            <h2 className="text-xl font-bold text-black mb-2">no goals yet</h2>
-            <p className="text-black/40 mb-6 text-sm max-w-xs leading-relaxed">
-              create your first goal and ontrack will build a daily plan to get you there.
-            </p>
-            <Link to="/goals/new" className="px-5 py-2.5 bg-[#2F7D5E] hover:bg-[#1F5E46] text-white rounded-full text-sm font-semibold transition-colors">
-              create a goal →
-            </Link>
-          </>
-        )}
+        <h2 className="text-xl font-bold text-black mb-2">no goals yet</h2>
+        <p className="text-black/40 mb-6 text-sm max-w-xs leading-relaxed">
+          create your first goal and ontrack will build a daily plan to get you there.
+        </p>
+        <Link to="/goals/new" className="px-5 py-2.5 bg-[#2F7D5E] hover:bg-[#1F5E46] text-white rounded-full text-sm font-semibold transition-colors">
+          create a goal →
+        </Link>
       </div>
     );
   }
@@ -357,18 +342,16 @@ export default function Today() {
             </p>
           )}
         </div>
-        {todayPlan && (
-          <button
-            onClick={() => { setShowFeedback(v => !v); setRegenError(""); }}
-            className={`shrink-0 flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-full border transition-colors ${
-              showFeedback
-                ? "border-black/20 bg-black/[0.05] text-black"
-                : "border-black/10 text-black bg-white hover:border-black/20"
-            }`}
-          >
-            ↻ regenerate day
-          </button>
-        )}
+        <button
+          onClick={() => { setShowFeedback(v => !v); setRegenError(""); }}
+          className={`shrink-0 flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-full border transition-colors ${
+            showFeedback
+              ? "border-black/20 bg-black/[0.05] text-black"
+              : "border-black/10 text-black bg-white hover:border-black/20"
+          }`}
+        >
+          {todayPlan ? "↻ regenerate day" : "↻ generate today"}
+        </button>
       </div>
 
       {/* Day-level regen panel */}
@@ -440,7 +423,7 @@ export default function Today() {
         </div>
       )}
 
-      {/* Free day */}
+      {/* No plan for today / Free day */}
       {!todayPlan && (() => {
         const nextDay = plan?.find(d => d.date > today) ?? null;
         const nextLabel = nextDay
@@ -453,8 +436,12 @@ export default function Today() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h2 className="text-xl font-bold text-black mb-1.5">free day.</h2>
-            {nextLabel ? (
+            <h2 className="text-xl font-bold text-black mb-1.5">{!plan ? "no plan yet." : "free day."}</h2>
+            {!plan ? (
+              <p className="text-sm text-black/40 mb-6 max-w-xs">
+                you have {goals.length} goal{goals.length !== 1 ? "s" : ""} set up. hit <span className="text-black font-medium">generate today</span> above to schedule your day.
+              </p>
+            ) : nextLabel ? (
               <p className="text-sm text-black/40 mb-6 max-w-xs">
                 nothing scheduled today. next session is <span className="text-black/60">{nextLabel}</span>.
               </p>
@@ -468,9 +455,14 @@ export default function Today() {
                 onClick={() => setShowFeedback(true)}
                 className="px-4 py-2 border border-black/10 rounded-full text-black/40 text-sm font-medium hover:border-black/20 hover:text-black bg-white transition-colors"
               >
-                add tasks for today
+                {!plan ? "generate today" : "add tasks for today"}
               </button>
-              {!nextLabel && (
+              {!plan && (
+                <Link to="/" className="px-4 py-2 bg-[#2F7D5E] hover:bg-[#1F5E46] rounded-full text-white text-sm font-semibold transition-colors">
+                  generate full plan →
+                </Link>
+              )}
+              {plan && !nextLabel && (
                 <Link to="/" className="px-4 py-2 bg-[#2F7D5E] hover:bg-[#1F5E46] rounded-full text-white text-sm font-semibold transition-colors">
                   generate next week →
                 </Link>

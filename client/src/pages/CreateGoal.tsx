@@ -167,19 +167,21 @@ function Topbar({ step, onBack, savedState }: {
         maxWidth: 820, margin: "0 auto", height: 64,
         padding: "0 28px", display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
-        {/* Left: back */}
-        <button
-          onClick={onBack}
-          style={{ fontSize: 13, fontWeight: 600, color: INK_60, background: "none", border: "none", cursor: "pointer", padding: 0 }}
-          onMouseEnter={e => (e.currentTarget.style.color = "#0d0d0d")}
-          onMouseLeave={e => (e.currentTarget.style.color = INK_60)}
-        >
-          {step > 3 ? "" : backLabel}
-        </button>
+        {/* Left: back — flex:1 so center stays pinned */}
+        <div style={{ flex: 1 }}>
+          <button
+            onClick={onBack}
+            style={{ fontSize: 13, fontWeight: 600, color: INK_60, background: "none", border: "none", cursor: "pointer", padding: 0 }}
+            onMouseEnter={e => (e.currentTarget.style.color = "#0d0d0d")}
+            onMouseLeave={e => (e.currentTarget.style.color = INK_60)}
+          >
+            {step > 3 ? "" : backLabel}
+          </button>
+        </div>
         {/* Center: wordmark */}
         <CurvedWordmark scale={0.38} />
-        {/* Right: saved indicator */}
-        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+        {/* Right: saved indicator — flex:1 so center stays pinned */}
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 7 }}>
           <div style={{
             width: 6, height: 6, borderRadius: "50%",
             background: GREEN,

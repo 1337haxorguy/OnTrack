@@ -84,168 +84,6 @@ const ALL_DAYS_ORDER = ["monday","tuesday","wednesday","thursday","friday","satu
 const DAY_ABBR       = ["M","T","W","T","F","S","S"];
 const TYPER_WORDS    = ["learn guitar","speak Spanish","run a 10k","write every day","get stronger","speak French","read more"];
 
-// ── Onboarding modal ──────────────────────────────────────────────────────────
-
-function OnboardingModal({ onClose, onCTA }: { onClose: () => void; onCTA: () => void }) {
-  const [slide, setSlide] = useState(
-    localStorage.getItem("ontrack_onboarding_seen") === "true" ? 3 : 0
-  );
-
-  const SLIDES = [
-    {
-      headline: "Built for the long game.",
-      sub: "Not a to-do list. Not a study planner. OnTrack is for skills and habits you want to build over weeks and months — the guitar, the language, the body, the craft.",
-      visual: (
-        <div className="flex flex-col gap-2">
-          {[
-            { emoji: "🎸", title: "Learn guitar",       meta: "Intermediate · 4 hrs/wk" },
-            { emoji: "🌍", title: "Speak Spanish",       meta: "Beginner · 3 hrs/wk"     },
-            { emoji: "🏃", title: "Run a half marathon", meta: "Beginner · 5 hrs/wk"     },
-          ].map((g) => (
-            <div key={g.title} className="flex items-center gap-3 rounded-xl border border-black/8 bg-[#F9F9F9] px-3.5 py-2.5 shadow-sm">
-              <span className="text-lg shrink-0">{g.emoji}</span>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-black">{g.title}</p>
-                <p className="text-[11px] text-black/35 mt-0.5">{g.meta}</p>
-              </div>
-              <span className="ml-auto text-black/15 text-sm">›</span>
-            </div>
-          ))}
-        </div>
-      ),
-    },
-    {
-      headline: "Tell us what you want to build.",
-      sub: "Give it a title, pick your level, set how many hours a week you can commit. That's it for now.",
-      visual: (
-        <div className="flex flex-col gap-3 rounded-xl border border-black/8 bg-[#F9F9F9] p-3.5 shadow-sm">
-          <div className="px-3 py-2.5 rounded-xl border border-black/10 bg-white text-black/25 text-sm">
-            e.g. Learn guitar
-          </div>
-          <div className="flex gap-2">
-            {["Beginner", "Intermediate", "Advanced"].map((lvl) => (
-              <button
-                key={lvl}
-                type="button"
-                className={`flex-1 py-2 rounded-full border text-xs font-medium transition-all ${
-                  lvl === "Beginner"
-                    ? "bg-black border-black text-white"
-                    : "bg-white border-black/10 text-black/35"
-                }`}
-              >
-                {lvl}
-              </button>
-            ))}
-          </div>
-        </div>
-      ),
-    },
-    {
-      headline: "The AI will ask a few questions.",
-      sub: "A quick back-and-forth to understand where you're starting and what's in your way. Takes about 2 minutes.",
-      visual: (
-        <div className="flex flex-col gap-2">
-          <div className="max-w-[85%] self-start rounded-2xl rounded-tl-sm px-3.5 py-2.5 bg-white border border-black/8 shadow-sm">
-            <p className="text-xs text-black/60 leading-relaxed">Do you have access to a guitar right now?</p>
-          </div>
-          <div className="max-w-[85%] self-end rounded-2xl rounded-tr-sm px-3.5 py-2.5 bg-black">
-            <p className="text-xs text-white leading-relaxed">Yes, I have an acoustic at home.</p>
-          </div>
-        </div>
-      ),
-    },
-    {
-      headline: "Your week, fully mapped.",
-      sub: "Sessions, times, tasks — scheduled around your life automatically. Ready to build your first goal?",
-      visual: (
-        <div className="rounded-xl border border-black/8 bg-white shadow-sm overflow-hidden">
-          <div className="px-3.5 py-2.5 border-b border-black/6">
-            <span className="text-xs font-semibold text-black">Monday</span>
-          </div>
-          <div className="divide-y divide-black/5">
-            {[
-              { time: "7:00 AM", label: "Guitar Practice", tasks: ["Chord transitions · 20 min"] },
-              { time: "6:00 PM", label: "Evening Run",     tasks: ["Easy 3 km · 30 min"]        },
-            ].map((block) => (
-              <div key={block.label} className="px-3.5 py-2.5 flex gap-3">
-                <span className="text-[10px] text-black/25 pt-0.5 w-12 shrink-0 tabular-nums">{block.time}</span>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-black mb-1">{block.label}</p>
-                  {block.tasks.map((t) => (
-                    <div key={t} className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full border border-black/20 shrink-0" />
-                      <p className="text-[11px] text-black/40">{t}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ),
-    },
-  ] as const;
-
-  const isLast = slide === 3;
-  const current = SLIDES[slide];
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-sm bg-white border border-black/8 rounded-2xl shadow-xl overflow-hidden">
-        {/* Card header */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-1">
-          {/* Dot indicators */}
-          <div className="flex gap-1.5">
-            {[0, 1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className={`h-1 rounded-full transition-all duration-200 ${
-                  i === slide ? "w-5 bg-black" : "w-1.5 bg-black/12"
-                }`}
-              />
-            ))}
-          </div>
-          {/* Close */}
-          <button
-            onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-full text-black/30 hover:text-black hover:bg-black/5 transition-colors text-lg leading-none"
-          >
-            ×
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="px-5 pt-4 pb-5 flex flex-col gap-4">
-          {/* Visual */}
-          <div>{current.visual}</div>
-
-          {/* Text */}
-          <div>
-            <h2 className="text-base font-bold text-black tracking-tight mb-1">{current.headline}</h2>
-            <p className="text-sm text-black/40 leading-relaxed">{current.sub}</p>
-          </div>
-
-          {/* Actions */}
-          {isLast ? (
-            <button
-              onClick={onCTA}
-              className="w-full py-3 bg-black text-white rounded-full font-semibold text-sm hover:bg-black/80 transition-colors"
-            >
-              Create my first goal →
-            </button>
-          ) : (
-            <button
-              onClick={() => setSlide((s) => (s + 1) as 0 | 1 | 2 | 3)}
-              className="w-full py-3 rounded-full border border-black/10 text-black text-sm font-medium hover:border-black/20 hover:bg-black/[0.02] transition-colors"
-            >
-              Next →
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── Save prompt modal ─────────────────────────────────────────────────────────
 
@@ -398,7 +236,7 @@ function RegenGoalModal({
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function GoalsOverview() {
-  const { goals, setGoals, schedule, plan, setPlan, showToast, usage, incrementGenerations, limitsEnabled } = useApp();
+  const { goals, setGoals, schedule, plan, setPlan, showToast, usage, incrementGenerations, limitsEnabled, unlimited } = useApp();
   const { isAuthenticated, getToken, openAuthModal } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -437,23 +275,6 @@ export default function GoalsOverview() {
     }
     return () => clearTimeout(timer);
   }, [typerText, typerDeleting, typerIdx, goals.length]);
-
-  // Onboarding overlay
-  const [showOnboarding, setShowOnboarding] = useState(() => goals.length === 0);
-  const [pulseButton,    setPulseButton]    = useState(false);
-
-  const closeOnboarding = () => {
-    localStorage.setItem("ontrack_onboarding_seen", "true");
-    setShowOnboarding(false);
-    setPulseButton(true);
-    setTimeout(() => setPulseButton(false), 3000);
-  };
-
-  const handleOnboardingCTA = () => {
-    localStorage.setItem("ontrack_onboarding_seen", "true");
-    setShowOnboarding(false);
-    navigate("/goals/new");
-  };
 
   const today       = toDateStr(new Date());
   const isPlanStale = !!plan && plan.length > 0 && plan.every(d => d.date < today);
@@ -587,81 +408,84 @@ export default function GoalsOverview() {
 
   if (goals.length === 0) {
     return (
-      <>
-        {showOnboarding && (
-          <OnboardingModal onClose={closeOnboarding} onCTA={handleOnboardingCTA} />
-        )}
-        <div className="flex flex-col items-center text-center" style={{ marginTop: 60 }}>
-          <div className="max-w-[560px] w-full flex flex-col items-center">
-            {/* Headline — 52px, weight 800, -0.03em, lh 0.98, max 14ch */}
-            <h1
-              className="font-extrabold"
-              style={{ fontSize: 52, letterSpacing: "-0.03em", lineHeight: 0.98, marginBottom: 14, maxWidth: "14ch" }}
-            >
-              lets start <Slab>one step</Slab> at a time
-            </h1>
+      <div className="flex flex-col items-center text-center" style={{ marginTop: 60 }}>
+        <div className="max-w-[560px] w-full flex flex-col items-center">
+          <h1
+            className="font-extrabold"
+            style={{ fontSize: 52, letterSpacing: "-0.03em", lineHeight: 0.98, marginBottom: 14, maxWidth: "14ch" }}
+          >
+            lets start <Slab>one step</Slab> at a time
+          </h1>
 
-            {/* Subhead — 15px, ink-60, lh 1.55, mb 28px */}
-            <p style={{ fontSize: 15, color: "rgba(13,13,13,.6)", lineHeight: 1.55, margin: "0 0 28px", maxWidth: "44ch" }}>
-              tell ontrack what you want to get good at. we'll plan your week around it.
+          <p style={{ fontSize: 15, color: "rgba(13,13,13,.6)", lineHeight: 1.55, margin: "0 0 28px", maxWidth: "44ch" }}>
+            tell ontrack what you want to get good at. we'll plan your week around it.
+          </p>
+
+          <div
+            aria-hidden="true"
+            className="flex items-center gap-2.5 w-full bg-white"
+            style={{
+              maxWidth: 480,
+              border: "1px solid rgba(13,13,13,.12)",
+              borderRadius: 14,
+              padding: "14px 14px 14px 18px",
+              boxShadow: "0 0 0 4px #E8F1EC",
+            }}
+          >
+            <span style={{ fontSize: 11, color: "rgba(13,13,13,.4)", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, flexShrink: 0 }}>
+              i want to
+            </span>
+            <span className="flex-1 flex items-center text-left font-semibold" style={{ fontSize: 16, color: "#0D0D0D" }}>
+              {typerText}
+              <span
+                className="inline-block w-[2px] ml-1 rounded-full"
+                style={{ height: "1em", background: "#2F7D5E", animation: "blink 1s step-end infinite" }}
+              />
+            </span>
+          </div>
+
+          <Link
+            to="/goals/new"
+            data-tour="new-goal"
+            className="inline-flex items-center rounded-full font-semibold text-white transition-colors"
+            style={{ background: "#2F7D5E", padding: "12px 20px", fontSize: 14, marginTop: 22 }}
+            onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "#1F5E46")}
+            onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "#2F7D5E")}
+          >
+            create your first goal →
+          </Link>
+
+          {/* Plan preview */}
+          <div className="w-full mt-12" style={{ maxWidth: 380 }}>
+            <div className="rounded-xl border border-black/8 bg-white shadow-sm overflow-hidden text-left">
+              <div className="px-3.5 py-2.5 border-b border-black/6">
+                <span className="text-xs font-semibold text-black">Monday</span>
+              </div>
+              <div className="divide-y divide-black/5">
+                {[
+                  { time: "7:00 AM", label: "Guitar Practice", task: "Chord transitions · 20 min" },
+                  { time: "6:00 PM", label: "Evening Run",     task: "Easy 3 km · 30 min"        },
+                ].map((block) => (
+                  <div key={block.label} className="px-3.5 py-2.5 flex gap-3">
+                    <span className="text-[10px] text-black/25 pt-0.5 w-12 shrink-0 tabular-nums">{block.time}</span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-black mb-1">{block.label}</p>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full border border-black/20 shrink-0" />
+                        <p className="text-[11px] text-black/40">{block.task}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <p className="text-sm font-semibold text-black mt-4 mb-1">Your week, fully mapped.</p>
+            <p className="text-xs text-black/40 leading-relaxed">
+              Sessions, times, tasks — scheduled around your life automatically.
             </p>
-
-            {/* Fake typewriter input — 14px radius, asym padding, green focus ring */}
-            <div
-              aria-hidden="true"
-              className="flex items-center gap-2.5 w-full bg-white"
-              style={{
-                maxWidth: 480,
-                border: "1px solid rgba(13,13,13,.12)",
-                borderRadius: 14,
-                padding: "14px 14px 14px 18px",
-                boxShadow: "0 0 0 4px #E8F1EC",
-              }}
-            >
-              <span style={{ fontSize: 11, color: "rgba(13,13,13,.4)", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, flexShrink: 0 }}>
-                i want to
-              </span>
-              <span className="flex-1 flex items-center text-left font-semibold" style={{ fontSize: 16, color: "#0D0D0D" }}>
-                {typerText}
-                <span
-                  className="inline-block w-[2px] ml-1 rounded-full"
-                  style={{ height: "1em", background: "#2F7D5E", animation: "blink 1s step-end infinite" }}
-                />
-              </span>
-            </div>
-
-            {/* Green CTA — 12px 20px padding, mt 22px */}
-            <Link
-              to="/goals/new"
-              data-tour="new-goal"
-              className={`inline-flex items-center rounded-full font-semibold text-white transition-colors ${pulseButton ? "ring-2 ring-offset-2" : ""}`}
-              style={{ background: "#2F7D5E", padding: "12px 20px", fontSize: 14, marginTop: 22 }}
-              onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "#1F5E46")}
-              onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "#2F7D5E")}
-            >
-              create your first goal →
-            </Link>
-
-            {/* Steps trail — mt 40px, 12.5px */}
-            <div className="flex flex-wrap justify-center items-center gap-2.5" style={{ marginTop: 40, fontSize: 12.5, color: "rgba(13,13,13,.4)" }}>
-              <span>
-                <span className="inline-flex items-center justify-center rounded-full font-bold" style={{ width: 18, height: 18, fontSize: 10, background: "#E8F1EC", color: "#1F5E46", marginRight: 6, verticalAlign: 1 }}>1</span>
-                tell us the goal
-              </span>
-              <span style={{ color: "rgba(13,13,13,.25)" }}>—</span>
-              <span>
-                <span className="inline-flex items-center justify-center rounded-full font-bold" style={{ width: 18, height: 18, fontSize: 10, background: "#E8F1EC", color: "#1F5E46", marginRight: 6, verticalAlign: 1 }}>2</span>
-                answer a few questions
-              </span>
-              <span style={{ color: "rgba(13,13,13,.25)" }}>—</span>
-              <span>
-                <span className="inline-flex items-center justify-center rounded-full font-bold" style={{ width: 18, height: 18, fontSize: 10, background: "#E8F1EC", color: "#1F5E46", marginRight: 6, verticalAlign: 1 }}>3</span>
-                get your week
-              </span>
-            </div>
           </div>
         </div>
-      </>
+      </div>
     );
   }
 
@@ -669,11 +493,6 @@ export default function GoalsOverview() {
 
   return (
     <div>
-
-      {/* Onboarding modal (visible if somehow shown while goals exist) */}
-      {showOnboarding && goals.length === 0 && (
-        <OnboardingModal onClose={closeOnboarding} onCTA={handleOnboardingCTA} />
-      )}
 
       {/* Save plan modal (guest post-generate) */}
       {showSavePrompt && !isAuthenticated && (
@@ -726,7 +545,7 @@ export default function GoalsOverview() {
             className="px-4 py-2 text-sm rounded-full font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             style={{ background: "#2F7D5E" }}
             onClick={generate}
-            disabled={loading || regenGoalId !== null || (limitsEnabled && isAuthenticated && usage.generations >= FREE_LIMITS.generations)}
+            disabled={loading || regenGoalId !== null || (limitsEnabled && isAuthenticated && !unlimited && usage.generations >= FREE_LIMITS.generations)}
           >
             {loading ? "Generating…" : "Generate Plan"}
           </button>
@@ -734,7 +553,7 @@ export default function GoalsOverview() {
       </div>
 
       {/* Generation limit note */}
-      {limitsEnabled && isAuthenticated && usage.generations >= FREE_LIMITS.generations && (
+      {limitsEnabled && isAuthenticated && !unlimited && usage.generations >= FREE_LIMITS.generations && (
         <p className="mb-3 text-xs text-black/40 text-right">
           You've used all {FREE_LIMITS.generations} free generations.
         </p>
@@ -840,8 +659,8 @@ export default function GoalsOverview() {
                   {plan && plan.length > 0 && (
                     <button
                       onClick={() => setRegenModalGoalId(goal.id)}
-                      disabled={regenGoalId !== null || loading || (limitsEnabled && isAuthenticated && usage.generations >= FREE_LIMITS.generations)}
-                      title={limitsEnabled && isAuthenticated && usage.generations >= FREE_LIMITS.generations ? "Generation limit reached" : "Regenerate blocks for this goal"}
+                      disabled={regenGoalId !== null || loading || (limitsEnabled && isAuthenticated && !unlimited && usage.generations >= FREE_LIMITS.generations)}
+                      title={limitsEnabled && isAuthenticated && !unlimited && usage.generations >= FREE_LIMITS.generations ? "Generation limit reached" : "Regenerate blocks for this goal"}
                       className="w-8 h-8 rounded-full border border-black/12 bg-white flex items-center justify-center text-black/50 hover:text-black hover:border-black/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
                       {isRegening ? (
