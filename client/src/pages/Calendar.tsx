@@ -1103,7 +1103,7 @@ export default function Calendar() {
             {/* Goal tag chip */}
             {(() => {
               const color = getBlockColor(selectedEvent.block.label);
-              const matchedGoal = goals.find((g, i) => GOAL_COLORS[i % GOAL_COLORS.length].stripe === color.stripe);
+              const matchedGoal = goals.find((_g, i) => GOAL_COLORS[i % GOAL_COLORS.length].stripe === color.stripe);
               const tagLabel = matchedGoal?.title.toLowerCase() ?? selectedEvent.block.label.toLowerCase().split(" ")[0];
               return (
                 <div className="inline-flex items-center gap-1.5 text-[10.5px] font-bold tracking-[0.14em] uppercase px-2.5 py-1 rounded-full mb-3"

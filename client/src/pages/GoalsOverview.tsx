@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useApp, FREE_LIMITS } from "../context/AppContext";
 import type { Goal, DayPlan } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
@@ -239,7 +239,6 @@ export default function GoalsOverview() {
   const { goals, setGoals, schedule, plan, setPlan, showToast, usage, incrementGenerations, limitsEnabled, unlimited } = useApp();
   const { isAuthenticated, getToken, openAuthModal } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
   const [loading,          setLoading]          = useState(false);
   const [error,            setError]            = useState("");
   const [regenGoalId,      setRegenGoalId]      = useState<string | null>(null);
